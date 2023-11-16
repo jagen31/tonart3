@@ -1,0 +1,14 @@
+**/compiled/*
+**/*.wav
+doc/
+**/*.bak
+**/*.html
+**/*.js
+*~
+**.rktd
+**.sxref
+
+**/sf2/*
+**/sfz/*
+
+.DS_Store
