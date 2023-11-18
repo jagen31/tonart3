@@ -244,7 +244,7 @@
             (for/fold ([chords '()] [pitch pitch] #:result (reverse chords)) 
                       ([chord-type chord-types] [transition (cons '(P 1) transitions)])
               (define new-pitch (transpose-by-interval (first pitch) (second pitch) (second transition) (first transition)))
-              (values (cons #`(chord #,(first new-pitch) #,(second new-pitch) #,chord-type) chords) new-pitch))
+              (values (cons #`(chord #,(first new-pitch) #,(second new-pitch) [#,chord-type]) chords) new-pitch))
           (qq-art harm (seq chords ...))])])))
 
 (define-mapping-rewriter (chord->notes/simple [(: crd chord)])
@@ -252,10 +252,10 @@
       (syntax-parse stx
         [(_ octave*:number)
          (syntax-parse crd
-           [(_ root accidental mode)
+           [(_ root accidental [mod ...])
             #:do[ 
               (define octave (syntax-e #'octave*))
-              (define pcs (generate-chord (syntax-e #'root) (syntax-e #'accidental) (syntax-e #'mode)))
+              (define pcs (generate-chord (syntax-e #'root) (syntax-e #'accidental) (syntax->datum #'mode)))
               (define cdis (distance-above-c (caar pcs)))]
             #:with (result ...)
               (for/list ([pc pcs])
@@ -264,3 +264,49 @@
                               [o (if (>= (distance-above-c (first pc)) cdis) octave (add1 octave))])
                   (qq-art crd (note p a o))))
             #'(@ () result ...)])])))
+
+(define-art-object (voiced-chord [pitch accidental mode notes ...]))
+
+;; (seq chord | voiced-chord) -> (seq voiced-chord)
+(define-art-rewriter voice-lead
+  (λ (stx)
+    (syntax-parse stx
+      [(_ n:number)
+       (define chord-seqs 
+         (filter (λ (e) 
+           (and 
+             (context-within? (get-id-ctxt e) (get-id-ctxt stx) (current-ctxt))
+             (syntax-parse e [(seq ({~or {~datum chord} {~datum voiced-chord}} _ ...) ...) #t] [_ #f]))) (current-ctxt)))
+       #`(@ ()
+       #,@(for/list ([chord-seq chord-seqs])
+         (syntax-parse chord-seq
+           [(_ chord ...)
+            (define empty-hint (build-list (syntax-e #'n) (λ (_) #f)))
+            (define hints 
+              (for/list ([chord (syntax->list #'(chord ...))])
+                (syntax-parse chord
+                  [({~datum chord} p a [mod ...])
+                   empty-hint]
+                  [({~datum voiced-chord} cp ca [cam ...] val ...)
+                   (map (λ (v)
+                     (syntax-parse v
+                       [(p:id a:number o:number) (syntax->datum #'(p a o))]
+                       [{~datum _} #f]))
+                     (syntax->list #'(val ...)))])))
+             (define chords
+              (for/list ([chord (syntax->list #'(chord ...))])
+                (syntax-parse chord
+                  [({~datum chord} p a [m ...])
+                   (syntax->datum #'(p a [m ...]))]
+                  [({~datum voiced-chord} cp ca [cm ...] _ ...)
+                   (syntax->datum #'(cp ca [cm ...]))])))
+             (define result (generate-voice-leading chords hints))
+             (with-syntax ([(result* ...) (for/list ([chord chords] [notes result]) 
+               #`(voiced-chord #,@chord #,@notes))])
+               (qq-art chord-seq (seq result* ...)))])))])))
+
+(define-mapping-rewriter (voiced-chord->note-seq [(: ch voiced-chord)])
+  (λ (stx ch)
+    (syntax-parse ch
+      [(_ _ _ _ (p a o) ...)
+       (qq-art ch (seq (note p a o) ...))])))
