@@ -34,7 +34,7 @@
 #;(displayln linuxsampler-string)
 #;(displayln musicxml-string)
 
-(define result 
+#;(define result 
   (perform music-rsound-performer 
 
     ;; the keys
@@ -55,8 +55,37 @@
 
     (measure@ 1 (tempo 120) (expand-loop) (^->note) (note->midi))))
 
+(define result (perform music-rsound-performer
+    (ss@ (accomp)
+      (measure@ 1
+        (seq (voiced-chord c 1 [minor] (e 0 4) (c 1 4) (g 1 3))
+             (chord a 0 [major]) (chord d 0 [major]) (chord g 1 [major 7]) (chord c 1 [minor]) 
+             (chord g 1 [sus 4]) 
+             (voiced-chord b 1 [diminished] _ _ (f 1 3))
+             (voiced-chord c 1 [minor] _ (g 1 3) _)
+             (voiced-chord c 1 [minor] _ (c 1 4) (g 1 3))
+             (chord g 1 [sus 7]))
+      (voice-lead 3)
+      (i@ [0 24] (rhythm 8 2 2 1 1 1 1 1 3 4) (apply-rhythm))
+      (voiced-chord->note-seq)
+      (i@ [0 24]  (loop 1 (-- [1/3 (! 0)] [1/3 (! 1)] [1/3 (! 2)]) (apply-rhythm)))
+      (expand-loop) (seq-ref)))
+    (ss@ (bass)
+      (measure@ 1
+        (seq (note c 1 3) (note b 0 2) (note a 0 2) (note f 1 2) (note g 1 2) (note c 1 3) (note b 1 2))
+        (rhythm 4 4 2 2 4 4 4)
+        (apply-rhythm)))
+    (music@ [(5 4) (melody)]
+      (seq (note g 1 4) (note g 1 4) (note g 1 4) (note g 1 4) (note g 1 4))
+      (rhythm 0.75 0.25 3 0.75 0.25)
+      (apply-rhythm))
+    (metric-interval->interval)
+    (note->midi)
+    (measure@ 1 (instrument |Yamaha Grand Piano|) (tempo 66))))
+
 (set-output-device! 1)
 (play result)
+(rs-write result "moonlight.wav")
 
 #;(define-simple-rewriter flammis-rhythm expand-flammis
     (-- [5 (rhythm 0.75 0.25 0.75 0.25 0.75 0.25 1 1)]))

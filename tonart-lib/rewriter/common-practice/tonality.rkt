@@ -1,25 +1,25 @@
 #lang racket
 
-(require data/collection (prefix-in list: racket/base))
+(require (prefix-in coll: data/collection))
 (provide (all-defined-out))
 
 (module+ test (require rackunit))
 
 ;; starting on f is nice for computations
-(define circle (cycle '(f c g d a e b)))
-(define rev-circle (cycle '(b e a d g c f)))
-(define line (cycle '(c d e f g a b)))
+(define circle (coll:cycle '(f c g d a e b)))
+(define rev-circle (coll:cycle '(b e a d g c f)))
+(define line (coll:cycle '(c d e f g a b)))
 
 ;; FIXME jagen unsafe (invalid pitch causes infinite loop!! :O )
-(define (distance-above-c pitch) (index-of line pitch))
+(define (distance-above-c pitch) (coll:index-of line pitch))
 
 (define (transpose-by-interval pitch accidental num type)
-  (define line* (drop (index-of line pitch) line))
-  (define pitch* (first (drop (sub1 num) line*)))
+  (define line* (coll:drop (coll:index-of line pitch) line))
+  (define pitch* (coll:first (coll:drop (sub1 num) line*)))
   ;; FIXME jagen maybe a better way?
   ;; currently the algorithm produces P1 M2 M3 A4 P5 M6 M7
-  (define ix-of-pitch (index-of circle pitch))
-  (define ix-of-pitch* (index-of circle pitch*))
+  (define ix-of-pitch (coll:index-of circle pitch))
+  (define ix-of-pitch* (coll:index-of circle pitch*))
   (define accidental* (if (< ix-of-pitch* ix-of-pitch) (add1 accidental) accidental))
 
   (define num* (add1 (modulo (sub1 num) 7)))
@@ -67,7 +67,7 @@
 
 
 #;(define (identify-interval p1 a1 p2 a2)
-  (define interval (add1 (- (index-of p2 line) (index-of p1 line))))
+  (define interval (add1 (- (coll:index-of p2 line) (coll:index-of p1 line))))
   (define-values (index-of-p1 index-of-p2) (index-of p1 cycle) (index-of p2 cycle))
   (define type 
     (if (< index-of-p1 index-of-p2)
@@ -79,11 +79,14 @@
         [(0 _ 'major)]))))
 
 (define (generate-stack pitch accidental intervals types)
-  (list:map transpose-by-interval 
-    (list:build-list (length intervals) (λ(x) pitch))
-    (list:build-list (length types) (λ(x) accidental))
+  (map transpose-by-interval 
+    (build-list (length intervals) (λ(x) pitch))
+    (build-list (length types) (λ(x) accidental))
     intervals
     types))
+
+(module+ test
+  (check-equal? (generate-stack 'c 0 '(3) '(major)) '((e 0))))
 
 (define (generate-scale pitch accidental type)
   (define types
@@ -96,14 +99,186 @@
   (check-equal? (generate-scale 'a 0 'major) '((a 0) (b 0) (c 1) (d 0) (e 0) (f 1) (g 1)))
   (check-equal? (generate-scale 'e -1 'minor) '((e -1) (f 0) (g -1) (a -1) (b -1) (c -1) (d -1))))
 
-(define (generate-chord pitch accidental type)
-  (match-define `((,intervals ...) (,types ...))
-    (match type
-      [(or 'major 'M) '((1 3 5) (perfect major perfect))]
-      [(or 'minor 'm) '((1 3 5) (perfect minor perfect))]
-      ['diminished '((1 3 5) (perfect minor diminished))]))
-  (generate-stack pitch accidental intervals types))
+(define (get-guide-tones pitch accidental modifiers)
+
+  (define-syntax-rule (mod? x) (member x modifiers))
+
+  (append
+    (cond 
+      [(mod? 'sus) '()]
+      [(mod? 'major) '((3 . major))]
+      [(or (mod? 'minor) (mod? 'diminished)) '((3 . minor))]
+      [else (error 'get-guide-tones "no third provided!")])
+    (cond 
+      [(mod? 7) '((7 . minor))]
+      [(mod? '(M 7)) '((7 . major))]
+      [else '()])
+    (if (mod? 4) '((4 . perfect)) '())
+    ;; ... more to come
+    ))
+
+
+(define (generate-guide-tones pitch accidental modifiers)
+
+  (define all (get-guide-tones pitch accidental modifiers))
+  (generate-stack pitch accidental (map car all) (map cdr all)))
+
+(define (generate-chord pitch accidental modifiers)
+
+  ;; FIXME jagen dim 5
+  (define all (sort (append `((1 . perfect) 
+    (5 . ,(if (member 'diminished modifiers) 'diminished 'perfect))) (get-guide-tones pitch accidental modifiers)) < #:key car))
+  (generate-stack pitch accidental (map car all) (map cdr all)))
 
 (module+ test
-  (check-equal? (generate-chord 'f 1 'minor) '((f 1) (a 0) (c 1)))
-  (check-equal? (generate-chord 'a -1 'diminished) '((a -1) (c -1) (e -2))))
+  (check-equal? (generate-chord 'f 1 '(minor)) '((f 1) (a 0) (c 1)))
+  (check-equal? (generate-chord 'a -1 '(diminished)) '((a -1) (c -1) (e -2)))
+  (check-equal? (generate-chord 'g 1 '(sus 4)) '((g 1) (c 1) (d 1))))
+
+
+#|
+(define (generate-voice-leading chords hint-matrix prev)
+  (cond
+    [(null? chords) matrix*]
+    [(car chords) => (λ (c) (generate-next-voice-leading c (car hint-matrix) prev))]))
+|#
+    
+(define (note->semitone n)
+  (match n
+    [(list p a o)
+     (define semis
+       (match p
+         ['c 0] ['d 2] ['e 4] ['f 5] ['g 7] ['a 9] ['b 11]))
+         ;; arbitrarily use 61 (well, "arbitrarily" :P)
+         (+ 61 semis a (* 12 (- o 4)))]))
+
+(define (semitone-distance note1 note2)
+  (- (note->semitone note2) (note->semitone note1)))
+
+(module+ test
+  (check-equal? (semitone-distance '(a 0 4) '(a 0 4)) 0)
+  (check-equal? (semitone-distance '(a 0 3) '(c 1 5)) 16)
+  (check-equal? (semitone-distance '(b 0 2) '(c 1 1)) -22))
+
+(define (pc-semitone-distance note pc)
+  (let/ec return
+  (match* (pc note)
+    [((list p a) (list p2 a2 o)) 
+     ;; equal means 0 up 0 down
+     (when (and (eq? p p2) (= a a2)) (return (list (cons note 0) (cons note 0))))
+     ;; try the octave above, the same octave, and the octave below remove the one that is
+     ;; more than an octave away.  Result will always be length 2 given the base case above ^^^
+     (filter (λ (d) (< (abs (cdr d)) 12))
+       (map (compose (λ (note*) (cons note* (semitone-distance note note*))) (λ (o) `(,p ,a ,o)))
+            (list (add1 o) o (sub1 o))))])))
+
+(define note-octave caddr)
+(define (map-octave f note)
+  `(,(car note) ,(cadr note) ,(f (caddr note))))
+
+(module+ test
+  (check-equal? (pc-semitone-distance '(a 0 4) '(a 0)) '(((a 0 4) . 0) ((a 0 4) . 0)))
+  (check-equal? (pc-semitone-distance '(a 0 3) '(c 1)) '(((c 1 4) . 4) ((c 1 3) . -8))))
+
+(define (lower-than n1 n2) (> (semitone-distance n1 n2) 0))
+(define (higher-than n1 n2) (< (semitone-distance n1 n2) 0))
+
+(define (pc->note pc o) (match pc [`(,p ,a) `(,p ,a ,o)]))
+(define (note->pc n) (match n [`(,p ,a ,o) `(,p ,a)]))
+
+(define (arpeggiate-span chord bottom top)
+  ;; `current` is equal to the "last" item in `chord` (which is a cycle, so the last non-repeating)
+  (define (arpeggiate-span chord top acc)
+    (cond [(higher-than (car acc) top) (reverse (cdr acc))]
+          [else 
+           (define current (car acc))
+           (define curr-o (note-octave current))
+           (define next (pc->note (coll:first chord) (note-octave current)))
+           ;; if next is closer to c then we've wrapped around and need to increase the octave
+           (define next* 
+             (if (<= (semitone-distance current `(c 0 ,curr-o))
+                     (semitone-distance next `(c 0 ,curr-o)))
+               (map-octave add1 next)
+               next))
+           (arpeggiate-span (coll:rest chord) top (cons next* acc))]))
+
+  ;; get the distances above for each note in chord
+  (define the-pcs (apply generate-chord chord))
+  (define-values (closest-note closest-index)
+    (for/fold ([index #f] [note* #f] [minimum 12] #:result (values note* index)) 
+              ([pc the-pcs] [i (in-naturals)])
+      ;; find the closest pc in the chord _counting from beneath_
+      (match-define (cons n* dis) (first (pc-semitone-distance bottom pc)))
+      (if (< dis minimum)
+          (values i n* dis)
+          (values index note* minimum))))
+  (arpeggiate-span (coll:drop (add1 closest-index) (coll:cycle the-pcs)) top (list closest-note)))
+
+(module+ test
+  (arpeggiate-span '(c 0 (major)) '(c 0 3) '(c 0 4)) '((c 0 3) (e 0 3) (g 0 3) (c 0 4)))
+
+(define (get-combinations ls)
+  (cond 
+    [(null? ls) '()]
+    [(null? (cdr ls)) (map list (car ls))]
+    [else 
+      (define combinations-rest (get-combinations (cdr ls)))
+      ;; FIXME jagen bad performance
+      (for/foldr ([acc '()]) 
+                 ([note (car ls)])
+        (append (map (λ (comb) (cons note comb)) combinations-rest) acc))]))
+
+(module+ test
+  (check-equal? (list->set (get-combinations '(((c 0 4) (f 0 4)) ((c 0 3) (f 0 3)))))
+                (list->set '(((c 0 4) (c 0 3)) ((f 0 4) (c 0 3)) ((c 0 4) (f 0 3)) ((f 0 4) (f 0 3))))))
+
+(define (generate-next-voice-leading chord hints prev)
+  (define scores
+    (for/list ([pnote prev] [hint hints])
+      (cond
+        [hint (list (cons hint 13))]
+        [else
+         (match pnote
+           [`(,p ,a ,o)
+            ;; generate all notes in the chord octave below and above
+            (define candidates (arpeggiate-span chord `(,p ,a ,(sub1 o)) `(,p ,a ,(add1 o))))
+            (map (λ (n) (cons n (- 12 (abs (semitone-distance n pnote))))) candidates)])])))
+    
+  (define possibilities (get-combinations scores))
+  (define mandatory-tones (list->set (cons (list (car chord) (cadr chord)) (apply generate-guide-tones chord))))
+
+  ;; just nix the ones that dont contain the guide tones for the chord
+  (define possibilities*
+    (filter 
+      (λ (schord) 
+        (subset? mandatory-tones (list->set (map (compose note->pc car) schord))))
+      possibilities))
+
+  (define options
+    (map (λ (leading)
+      (define leading* (map car leading))
+      (define score (for/sum ([score (map cdr leading)]) score))
+      (cons leading* score))
+    possibilities*))
+  
+  (car (argmax cdr options)))
+
+(module+ test
+  (generate-next-voice-leading '(f 0 (major)) '(#f #f #f (f 0 3)) '((c 0 5) (g 0 4) (e 0 4) (c 0 3))))
+
+(define (generate-voice-leading chords hints)
+  (define fst (car hints))
+  (unless (andmap (λ(x) x) fst) (error 'generate-voice-leading "requires a starting chord"))
+  (for/fold ([acc (list fst)] #:result (reverse acc))
+            ([chord (cdr chords)] [hint (cdr hints)])
+    (define result (generate-next-voice-leading chord hint (car acc)))
+    (cons result acc)))
+
+(module+ test
+  (generate-voice-leading 
+    '((c 0 (major)) (f 0 (major))) 
+    '(((c 0 5) (g 0 4) (e 0 4) (c 0 3)) (#f #f #f #f)))
+    
+  (generate-voice-leading 
+    '((c 1 (minor)) (a 0 (major)) (d 0 (major)) (g 1 (major)) (c 1 (minor)) (c 1 (minor)) (g 1 (major))) 
+    '(((e 0 4) (c 1 4) (g 1 3)) (#f #f #f)(#f #f #f)(#f #f #f)(#f #f #f)(#f #f #f)(#f #f #f))))
