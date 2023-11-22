@@ -66,9 +66,22 @@
              (cons (round (* #,start* (/ (default-sample-rate) (/ tempo* 60))))
                    (rs-scale 2 (rs-mult (sine-window duration (floor (/ duration 4))) (make-tone freq 0.1 duration))))) acc)])]
         [_ acc]))))
+      
+(define preset-memo (make-hash))
+(define (load-preset/memo name)
+  (if (hash-has-key? preset-memo name)
+    (begin (println "yay")
+      (hash-ref preset-memo name))
+    (let ([result (load-preset fluid name)])
+      (printf "setting hashmap with ~s\n" name)
+      (hash-set! preset-memo name result)
+      result)))
+
+(define def (default-sample-rate))
 
 (define-subperformer midi-subperformer
   (λ(ctxt)
+    (println "running midi subperformer")
     (for/foldr ([acc '()])
                ([stx ctxt])
       (syntax-parse stx
@@ -78,16 +91,16 @@
            (format "this performer requires beat intervals for all midis, got: ~s" (syntax->datum (un-@ stx))) stx))
          (define-values (start* end*) (syntax-parse iv
            [({~datum interval} ({~datum start} val:number) ({~datum end} val2:number)) (values (syntax-e #'val) (syntax-e #'val2))]))
-         (define instrument (context-ref/surrounding ctxt (get-id-ctxt stx) #'instrument))
+         (define instrument #'(instrument |Yamaha Grand Piano|) #;(context-ref/surrounding ctxt (get-id-ctxt stx) #'instrument))
          ;; FIXME jagen THIS ASSUMES UNIFORM TEMPO
-         (define tempo (context-ref/surrounding ctxt (get-id-ctxt stx) #'tempo))
+         (define tempo #'(tempo 66) #;(context-ref/surrounding ctxt (get-id-ctxt stx) #'tempo))
          (unless instrument (raise-syntax-error 'midi-subperformer "no instrument in context for midi" stx))
          (unless tempo (raise-syntax-error 'midi-subperformer "no tempo in context for midi" stx))
          (syntax-parse #`(#,instrument #,tempo)
            [(({~datum instrument} name:id) ({~datum tempo} tempo*:number))
             (cons #`(let ([duration (get-duration #,start* #,end* tempo*)]) 
-              (cons (round (* #,start* (/ (default-sample-rate) (/ tempo* 60))))
-                    (preset-midi->rsound (load-preset fluid(symbol->string (syntax->datum #'name))) (syntax-e #'num) duration))) acc)])]
+              (cons (round (* #,start* (/ def (/ tempo* 60))))
+                    (preset-midi->rsound (load-preset/memo (symbol->string (syntax->datum #'name))) (syntax-e #'num) duration))) acc)])]
         [_ acc]))))
 
 (define-composite-pstream-performer music-pstream-performer {tone-subperformer midi-subperformer})

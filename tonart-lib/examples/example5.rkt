@@ -16,7 +16,7 @@ Here are the main elements:
 
     [the-comp-rhythm (rhythm 1.5 1 1 0.5 1 0.5 2.5)]
     [the-comp-harmony 
-      (relative-harmony M [M 7] M [m 7] M)]
+      (relative-harmony (major) [M 7] (major) [m 7] (major))]
 
     [the-solo-rhythm (i@ [0 8] (uniform-rhythm 0.5))])]
 

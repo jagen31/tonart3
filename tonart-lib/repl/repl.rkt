@@ -1,5 +1,6 @@
 #lang racket
 (require art tonart/rewriter/common-practice/main
+             tonart/rewriter/church/hymn
              tonart/realizer/electronic/rsound/main
          (for-syntax racket syntax/parse data/gvector))
 
@@ -68,7 +69,9 @@
            [i (in-naturals)])
        (displayln (format "~a: ~a" i (syntax->datum expr))))
      #'(void)]
-    [(_ . ({~literal show-compiled}))
-     #`(perform quote-performer #,@(gvector->list the-exprs))]
+    [(_ . ({~literal show-compiled} expr ...))
+    #:with (result ...) (append (gvector->list the-exprs) (syntax->list #'(expr ...)))
+    (println #'(result ...))
+     #`(perform quote-performer result ...)]
     [(_ . ({~literal racket} expr))
      #'expr]))

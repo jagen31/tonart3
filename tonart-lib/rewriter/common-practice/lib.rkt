@@ -12,6 +12,16 @@
 (define-art-object (note [pitch accidental octave]))
 (define-art-object (tuning [type]))
 
+(define-art-rewriter notes
+  (λ (stx)
+    (syntax-parse stx
+      [(_ the-note ...)
+       #:with (the-note* ...)
+        (for/list ([n (syntax->list #'(the-note ...))])
+         (syntax-parse n
+          [(p:id a:number o:number) (qq-art n (note p a o))]))
+       (qq-art stx (seq the-note* ...))])))
+
 ;; convert notes in a context to tones. requires a tuning
 (begin-for-syntax
   (define (semitone->freq value octave)
@@ -219,6 +229,17 @@
 
 (define-art-object (chord [pitch accidental mode]))
 
+(define-art-rewriter chords
+  (λ (stx)
+    (syntax-parse stx
+      [(_ the-chord ...)
+       #:with (the-chord* ...)
+        (for/list ([ch (syntax->list #'(the-chord ...))])
+         (syntax-parse ch
+          [(p:id a:number mods ... {~seq #:v [voice ...]}) (qq-art ch (voiced-chord p a [mods ...] voice ...))]
+          [(p:id a:number mods ...) (qq-art ch (chord p a [mods ...]))]))
+       (qq-art stx (seq the-chord* ...))])))
+
 (define-art-object (relative-harmony [chords]))
 
 (define-for-syntax (odd-even-list li) 
@@ -244,7 +265,7 @@
             (for/fold ([chords '()] [pitch pitch] #:result (reverse chords)) 
                       ([chord-type chord-types] [transition (cons '(P 1) transitions)])
               (define new-pitch (transpose-by-interval (first pitch) (second pitch) (second transition) (first transition)))
-              (values (cons #`(chord #,(first new-pitch) #,(second new-pitch) [#,chord-type]) chords) new-pitch))
+              (values (cons #`(chord #,(first new-pitch) #,(second new-pitch) #,chord-type) chords) new-pitch))
           (qq-art harm (seq chords ...))])])))
 
 (define-mapping-rewriter (chord->notes/simple [(: crd chord)])
@@ -253,9 +274,9 @@
         [(_ octave*:number)
          (syntax-parse crd
            [(_ root accidental [mod ...])
-            #:do[ 
+            #:do [ 
               (define octave (syntax-e #'octave*))
-              (define pcs (generate-chord (syntax-e #'root) (syntax-e #'accidental) (syntax->datum #'mode)))
+              (define pcs (generate-chord (syntax-e #'root) (syntax-e #'accidental) (syntax->datum #'(mod ...))))
               (define cdis (distance-above-c (caar pcs)))]
             #:with (result ...)
               (for/list ([pc pcs])
@@ -310,3 +331,42 @@
     (syntax-parse ch
       [(_ _ _ _ (p a o) ...)
        (qq-art ch (seq (note p a o) ...))])))
+
+(define-mapping-rewriter (chord->voiced-chord [(: ch chord)])
+  (λ (stx ch)
+    (syntax-parse stx
+      [(_ n:number)
+       (syntax-parse ch
+         [(_ p a o) 
+          ;; build a list of n underscores, indicating an unspecified voice leading for n voices
+          #:with (uscores ...) (build-list (syntax-e #'n) (λ (_) #'_))
+         (qq-art ch (voiced-chord p a o uscores ...))])])))
+
+(define-mapping-rewriter (fill-voice [(: chords? seq)])
+  (λ (stx chords?)
+    (syntax-parse stx
+      [(_ voice-ix:number)
+       #:with (result ...) 
+         (for/fold ([acc '()]) 
+                   ([s chords?])
+           (define the-note-sequences
+             (filter (λ (x) (syntax-parse x [(_ ((~datum note) _ ...)) #t] [_ #f]))
+                     (context-ref*/surrounding (current-ctxt) (get-id-ctxt s) #'seq)))
+           (when (null? the-note-sequences) (raise-syntax-error 'fill-voice "oops" chords?))
+           (define the-note-sequence 
+             (syntax-parse (car the-note-sequences)
+               [(_ ns ...) (syntax->list #'(ns ...))]))
+           (syntax-parse s
+             [(_ {~and cd ({~datum voiced-chord} _ ...)} ...)
+              (for/list ([chord (syntax->list #'(cd ...))] [i (in-naturals)])
+                (syntax-parse chord
+                  [(_ p a o voice ...)
+                   #:with (voice* ...) 
+                     (list-set (syntax->list #'(voice ...)) (syntax-e #'voice-ix) 
+                       (list-ref the-note-sequence i))
+                   (qq-art chord (voiced-chord p a o voice* ...))]))]
+             [_ acc]))
+          #'(@ () result ...)])))
+
+#;(define-mapping-rewriter fill-harmony
+  )

@@ -62,15 +62,18 @@ auto |@(car iname) = sampler->AddSamplerChannel();
 
 (define-subperformer linuxsampler-midi-subperformer
   (λ(ctxt*)
+    (println "running midi subperf")
     (define imap* (context-ref ctxt* #'instrument-map))
     (unless imap* (raise-syntax-error 'midi-subperformer "no instrument map in context"))
     (define imap (syntax-parse imap* [(_ map ...) (syntax->datum #'(map ...))]))
     (define ctxt (sort ctxt* < 
-      #:key (λ (stx) (syntax-parse (context-ref (get-id-ctxt stx) #'instant) [(_ result) (syntax-e #'result)]))))
+      #:key (λ (stx) 
+        (define inst (context-ref (get-id-ctxt stx) #'instant))
+        (if inst
+          (syntax-parse inst [(_ result) (syntax-e #'result)])
+          0))))
     (for/foldr ([acc '()])
                ([stx ctxt])
-
-
       (syntax-parse stx
         [({~datum midi} num:number) 
          (define instrument (context-ref/surrounding ctxt (get-id-ctxt stx) #'instrument))

@@ -13,12 +13,18 @@
 
 (define-art-object (st-flavian []))
 
-(define-mapping-rewriter (st-flavian->notes [(: melodies st-flavian)])
+(define-mapping-rewriter (st-flavian->rhythm [(: melodies st-flavian)])
+  (λ (stx melody)
+    (qq-art melody
+      (pocket-rewrite
+        (rhythm 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3)))))
+
+(define-mapping-rewriter (st-flavian->^s [(: melodies st-flavian)])
   (λ (stx melody)
     (qq-art melody
       (pocket-rewrite
         (scale-degree-seq 1 1 0 1 3 2 2 1 1 4 3 1 2 3 3 3 4 5 3 1 2 3 3 2 1 1 0 1)
-        (rhythm 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3)
+        (st-flavian->rhythm)
         (apply-rhythm)))))
 
 (define-art-object (stuttgart []))

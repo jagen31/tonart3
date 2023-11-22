@@ -106,8 +106,8 @@
   (append
     (cond 
       [(mod? 'sus) '()]
-      [(mod? 'major) '((3 . major))]
-      [(or (mod? 'minor) (mod? 'diminished)) '((3 . minor))]
+      [(or (mod? 'major) (mod? 'M)) '((3 . major))]
+      [(or (mod? 'minor) (mod? 'm) (mod? 'diminished) (mod? 'dim)) '((3 . minor))]
       [else (error 'get-guide-tones "no third provided!")])
     (cond 
       [(mod? 7) '((7 . minor))]

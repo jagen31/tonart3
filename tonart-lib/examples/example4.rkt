@@ -55,37 +55,52 @@
 
     (measure@ 1 (tempo 120) (expand-loop) (^->note) (note->midi))))
 
-(define result (perform music-rsound-performer
-    (ss@ (accomp)
-      (measure@ 1
-        (seq (voiced-chord c 1 [minor] (e 0 4) (c 1 4) (g 1 3))
-             (chord a 0 [major]) (chord d 0 [major]) (chord g 1 [major 7]) (chord c 1 [minor]) 
-             (chord g 1 [sus 4]) 
-             (voiced-chord b 1 [diminished] _ _ (f 1 3))
-             (voiced-chord c 1 [minor] _ (g 1 3) _)
-             (voiced-chord c 1 [minor] _ (c 1 4) (g 1 3))
-             (chord g 1 [sus 7]))
-      (voice-lead 3)
-      (i@ [0 24] (rhythm 8 2 2 1 1 1 1 1 3 4) (apply-rhythm))
-      (voiced-chord->note-seq)
-      (i@ [0 24]  (loop 1 (-- [1/3 (! 0)] [1/3 (! 1)] [1/3 (! 2)]) (apply-rhythm)))
-      (expand-loop) (seq-ref)))
-    (ss@ (bass)
-      (measure@ 1
-        (seq (note c 1 3) (note b 0 2) (note a 0 2) (note f 1 2) (note g 1 2) (note c 1 3) (note b 1 2))
-        (rhythm 4 4 2 2 4 4 4)
-        (apply-rhythm)))
-    (music@ [(5 4) (melody)]
-      (seq (note g 1 4) (note g 1 4) (note g 1 4) (note g 1 4) (note g 1 4))
-      (rhythm 0.75 0.25 3 0.75 0.25)
-      (apply-rhythm))
-    (metric-interval->interval)
-    (note->midi)
-    (measure@ 1 (instrument |Yamaha Grand Piano|) (tempo 66))))
+(define result
+  (perform linuxsampler-performer
+  (ss@ (accomp)
+    (chords (c 1 m #:v [(g 1 3) (c 1 4) (e 0 4)]) (a 0 M) (d 0 M) (g 1 M 7) (c 1 m) (g 1 sus 4) 
+            (b 1 dim #:v [(f 1 3) _ _]) 
+            (c 1 m #:v [(e 0 3) (g 1 3) _]) (c 1 m #:v [(g 1 3) (c 1 4) _])
+            (g 1 sus 7))
+    (rhythm 8 2 2 1 1 1 1 1 3 4)
+    (voice-lead 3)
+    (apply-rhythm)
+    (voiced-chord->note-seq)
+    (i@ [0 24] (loop 1 (-- [1/3 (! 0)] [1/3 (! 1)] [1/3 (! 2)]))
+               (expand-loop) (apply-rhythm) (seq-ref))
 
+    (instrument piano))
+  (ss@ (bass)
+    (notes (c 1 3) (b 0 2) (a 0 2) (f 1 2) (g 1 2) (c 1 3) (b 1 2))
+    (rhythm 4 4 2 2 4 4 4)
+    (apply-rhythm)
+    (instrument pedal)
+  )
+  (music@ [(5 4) (melody)]
+    (notes (g 1 4) (g 1 4) (g 1 4) (g 1 4) (g 1 4))
+    (rhythm 0.75 0.25 3 0.75 0.25)
+    (apply-rhythm)
+    (instrument flute))
+  (measure@ 1
+    (note->midi)
+    (instrument-map 
+      [piano . 000/000_Montre_8]
+      [pedal . 000/015_Bourdon_16]
+      [flute . 000/025_Trompette_8])
+    (tempo 66)
+    (metric-interval->interval)
+    (d/dt))))
+
+#|
 (set-output-device! 1)
 (play result)
 (rs-write result "moonlight.wav")
+|#
+
+    (define file (open-output-file "tonart-lib/realizer/electronic/linuxsampler/.test/test.cpp" 
+                                   #:exists 'replace))
+    (displayln result file)
+    (close-output-port file)
 
 #;(define-simple-rewriter flammis-rhythm expand-flammis
     (-- [5 (rhythm 0.75 0.25 0.75 0.25 0.75 0.25 1 1)]))

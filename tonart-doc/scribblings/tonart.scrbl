@@ -10,5 +10,3 @@
 An extensible markup language and meta-language, for creating and manipulating music.
 
 @table-of-contents[]
-
-@include-section[(submod "../../tonart-lib/examples/example3.rkt" doc)]

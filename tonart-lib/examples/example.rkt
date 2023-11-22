@@ -26,7 +26,7 @@
   (seq-ref) ; !@[seq A] -> A => note, seq
 
   (i@ [0 32] (st-flavian))
-  (st-flavian->notes)
+  (st-flavian->^s)
 
   (i@ [0 100] (instrument |Yamaha Grand Piano|))
   (pocket-rewrite
