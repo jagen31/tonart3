@@ -83,20 +83,20 @@
           [48
             (loop 24 
               (seq 
-                (note f 0 4) (note g 0 4) (note f 0 4) (note g 0 4) (note a 0 4)
+                (ix-- (note f 0 4) (note g 0 4) (note f 0 4) (note g 0 4) (note a 0 4)
                 (note b -1 4) (note a 0 4) (note g 0 4) (note f 0 4) (note g 0 4)
                 (note c 0 5) (note b -1 4) (note a 0 4) (note a 0 4) 
-                (note g 0 4) (note f 0 4) (note g 0 4) (note f 0 4)))]
+                (note g 0 4) (note f 0 4) (note g 0 4) (note f 0 4))))]
           [24 
             (seq 
-              (note c 0 5) (note c 0 5) (note c 0 5) (note b -1 4) (note a 0 4)
+              (ix-- (note c 0 5) (note c 0 5) (note c 0 5) (note b -1 4) (note a 0 4)
               (note b -1 4) (note b -1 4) (note b -1 0 5) (note a 0 4) (note g 0 4)
               (note a 0 4) (note a 0 4) (note a 0 4) (note b -1 4) (note c 0 5)
-              (note c 0 5) (note b -1 4) (note a 0 4) (note g 0 4))]
+              (note c 0 5) (note b -1 4) (note a 0 4) (note g 0 4)))]
           [24
             (seq
-              (note c 0 5) (note a 0 4) (note c 0 5) (note b -1 4) (note g 0 4) (note b -1 4)
+              (ix-- (note c 0 5) (note a 0 4) (note c 0 5) (note b -1 4) (note g 0 4) (note b -1 4)
               (note a 0 4) (note f 0 4) (note a 0 4) (note g 0 4) (note a 0 4) (note b -1 4) (note a 0 4) (note g 0 4)
               (note c 0 5) (note c 0 5) (note d 0 5) (note c 0 5) (note b -1 4) 
-              (note a 0 4) (note b -1 4) (note g 0 4) (note f 0 4))])
+              (note a 0 4) (note b -1 4) (note g 0 4) (note f 0 4)))])
         (i@ [0 96] (expand-loop) (apply-rhythm))))))

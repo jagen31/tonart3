@@ -266,7 +266,7 @@
                       ([chord-type chord-types] [transition (cons '(P 1) transitions)])
               (define new-pitch (transpose-by-interval (first pitch) (second pitch) (second transition) (first transition)))
               (values (cons #`(chord #,(first new-pitch) #,(second new-pitch) #,chord-type) chords) new-pitch))
-          (qq-art harm (seq chords ...))])])))
+          (qq-art harm (seq (ix-- chords ...)))])])))
 
 (define-mapping-rewriter (chord->notes/simple [(: crd chord)])
     (λ (stx crd)

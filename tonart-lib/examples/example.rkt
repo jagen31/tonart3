@@ -20,9 +20,9 @@
   (my-music->objs) ;; my-music -> ! => !
 
   (-- 0 
-    [2 (seq (note a 0 3) (note c 0 4) (tone 200))] ; -> [seq note] => !, seq]
-    [2 (seq (note a 0 4) (note c 0 5) (tone 300))] ; -> [seq note] => !, seq
-    [2 (seq (note f 0 4) (note d 0 5) (tone 555))]) ; -> [seq note] => !, seq
+    [2 (seq (ix-- (note a 0 3) (note c 0 4) (tone 200)))] ; -> [seq note] => !, seq]
+    [2 (seq (ix-- (note a 0 4) (note c 0 5) (tone 300)))] ; -> [seq note] => !, seq
+    [2 (seq (ix-- (note f 0 4) (note d 0 5) (tone 555)))]) ; -> [seq note] => !, seq
   (seq-ref) ; !@[seq A] -> A => note, seq
 
   (i@ [0 32] (st-flavian))

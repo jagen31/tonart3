@@ -82,7 +82,7 @@ Con-fu-ta-tis.
 
 @chunk[<the-confutatis>
   (music@ [(1 2) (basses)]
-    (-- [4 (seq (note a 0 3) (note e 0 3) (note c 0 4) (note a 0 3))
+    (-- [4 (seq (ix-- (note a 0 3) (note e 0 3) (note c 0 4) (note a 0 3)))
            (confutatis-rhythm)]))]
 
 @chunk[<the-definitions>
@@ -96,7 +96,7 @@ Ma-le-dic-tis.
 
 @chunk[<the-confutatis>
   (music@ [(2 2) (basses)]
-    (-- [4 (seq (note b 0 3) (note e 0 3) (note d 0 4) (note g 1 3)) 
+    (-- [4 (seq (ix-- (note b 0 3) (note e 0 3) (note d 0 4) (note g 1 3))) 
            (confutatis-rhythm)]))]
 
 (speaking)
@@ -113,7 +113,7 @@ Flam-mis a-cri-bus ad-dic-tis.
 
 @chunk[<the-confutatis>
   (music@ [(3 2) (basses)]
-    (-- [5 (seq (note e 0 4) (note d 0 4) (note c 0 4) (note b 0 3) (note a 0 3) (note g 0 3) (note f 0 3) (note d 0 3))
+    (-- [5 (seq (ix-- (note e 0 4) (note d 0 4) (note c 0 4) (note b 0 3) (note a 0 3) (note g 0 3) (note f 0 3) (note d 0 3)))
            (flammis-rhythm)]))]
 
 @chunk[<the-definitions>
@@ -128,10 +128,10 @@ dic-tis.
 
 @chunk[<the-confutatis>
   (music@ [(4 4) (basses)]
-    (-- [2 (seq (note d 0 4) (note d 0 4) (note d 0 4) (note e 0 3))]
-        [5 (seq (note g 1 3) (note e 0 3)
+    (-- [2 (seq (ix-- (note d 0 4) (note d 0 4) (note d 0 4) (note e 0 3)))]
+        [5 (seq (ix-- (note g 1 3) (note e 0 3)
                 (note c 0 4) (note a 0 3) (note c 0 4) (note a 0 3) 
-                (note g 1 3) (note e 0 3))])
+                (note g 1 3) (note e 0 3)))])
     (-- [2 (rhythm 0.75 0.25 0.75 0.25)] 
         [5 (rhythm 0.75 0.25 0.75 0.25 0.75 0.25 1 1)]))]
 
@@ -156,7 +156,7 @@ Con-fu-ta-tis.
 
 @chunk[<the-confutatis>
   (music@ [(1 4) (tenors)]
-    (-- [4 (seq (note c 0 4) (note a 0 3) (note d 0 4) (note g 1 3))
+    (-- [4 (seq (ix-- (note c 0 4) (note a 0 3) (note d 0 4) (note g 1 3)))
            (confutatis-rhythm)]))]
 
 (speaking)
@@ -166,7 +166,7 @@ Ma-le-dic-tis.
 
 @chunk[<the-confutatis>
   (music@ [(2 4) (tenors)]
-    (-- [4 (seq (note d 0 4) (note b 0 3) (note e 0 4) (note a 0 3))
+    (-- [4 (seq (ix-- (note d 0 4) (note b 0 3) (note e 0 4) (note a 0 3)))
            (confutatis-rhythm)]))]
 
 (speaking)
@@ -184,8 +184,8 @@ mis a-cri-bus ad-dic-tis.
 
 @chunk[<the-confutatis>
   (music@ [(4 2) (tenors)]
-    (-- [4 (seq (note f 0 4) (note e 0 4) (note d 0 4) (note c 0 4) (note b 0 3) (note a 0 3) (note g 1 3) (note e 0 3))]
-        [5 (seq (note d 0 4) (note d 0 4) (note d 1 4) (note d 1 4) (note d 1 4) (note d 1 4) (note e 0 4) (note e 0 3))])
+    (-- [4 (seq (ix-- (note f 0 4) (note e 0 4) (note d 0 4) (note c 0 4) (note b 0 3) (note a 0 3) (note g 1 3) (note e 0 3)))]
+        [5 (seq (ix-- (note d 0 4) (note d 0 4) (note d 1 4) (note d 1 4) (note d 1 4) (note d 1 4) (note e 0 4) (note e 0 3)))])
     (-- [4 (rhythm 0.75 0.25 0.75 0.25 0.75 0.25 0.75 0.25)] 
         [5 (flammis-rhythm)]))]
 
@@ -286,8 +286,8 @@ He sings the urgent first measure of the ostinato.
 
     (measure@ [1 5] (loop 1 (rhythm 0.125 0.125 0.25 0.25 0.25)))
     (measure@ [1 4] 
-      (loop 2 (-- [1 (seq (^ 1) (^ 2) (^ 3) (^ 3) (^ 3))]
-                  [1 (seq (^ 3) (^ 2) (^ 1) (^ 1) (^ 1))]))))]
+      (loop 2 (-- [1 (seq (ix-- (^ 1) (^ 2) (^ 3) (^ 3) (^ 3)))]
+                  [1 (seq (ix-- (^ 3) (^ 2) (^ 1) (^ 1) (^ 1)))]))))]
 
 MOZART
 (speaking)
@@ -317,8 +317,8 @@ to the dominant chord. Do you see?
 @chunk[<the-confutatis>
   (ss@ (strings)
     (-- [4] [4 (transpose-diatonic 1)] [4 (transpose-diatonic 2)] [4 (transpose-diatonic 3)]
-        [1 (seq (^ 5) (^ 7) (^ 2) (^ 2) (^ 2))] [1 (seq (^ 2) (^ 7) (^ 5) (^ 5) (^ 5))] 
-        [1 (seq (^ 5) (^ 1) (^ 3) (^ 3) (^ 3))] [1 (seq (^ 3) (^ 1) (^ 5) (^ 5) (^ 5))]
+        [1 (seq (ix-- (^ 5) (^ 7) (^ 2) (^ 2) (^ 2)))] [1 (seq (ix-- (^ 2) (^ 7) (^ 5) (^ 5) (^ 5)))] 
+        [1 (seq (ix-- (^ 5) (^ 1) (^ 3) (^ 3) (^ 3)))] [1 (seq (ix-- (^ 3) (^ 1) (^ 5) (^ 5) (^ 5)))]
         [0.5 (^ 5)] [0.5 (^ 5)])
         
 
@@ -357,8 +357,8 @@ dic-tis.
       (key c 0 major)
       (rhythm 3.5 0.5 1.5 0.5 2 1.5 0.5 0.5 0.5 0.5 0.5 2 1)
       (octave 5)
-      (seq (^ 1) (^ 1) (^ 2) (^ 2) (^ 1) 
-           (^ 1) (^ 1) (^ 1) (^ 1) (^ 1) (^ 1) (^ 2) (^ 1)))
+      (seq (ix-- (^ 1) (^ 1) (^ 2) (^ 2) (^ 1) 
+           (^ 1) (^ 1) (^ 1) (^ 1) (^ 1) (^ 1) (^ 2) (^ 1))))
       (copy-to (sopranos))
 
     ;; small correction
@@ -389,14 +389,14 @@ He sings the violin figure under the Voca Me (Bars 7,8,9).
 @chunk[<the-definitions>
   (interpretation+ confutatis
     [voca-ostinato (rhythm 0.5 0.25 0.25 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.25 0.25 0.5 0.5 0.5)]
-    [voca-ostinato-^ (seq (^ 1) (^ 3) (^ 5) (^ 8) (^ 7) (^ 6) (^ 5) (^ 4) (^ 3) (^ 2) (^ 3) (^ 4) (^ 5) (^ -2) (^ 1))])]
+    [voca-ostinato-^ (seq (ix-- (^ 1) (^ 3) (^ 5) (^ 8) (^ 7) (^ 6) (^ 5) (^ 4) (^ 3) (^ 2) (^ 3) (^ 4) (^ 5) (^ -2) (^ 1)))])]
 
 @chunk[<the-voca>
   (musi@ [0 15 (strings)]
     (key c 0 major)
     (octave 4)
     (-- 0 [6.5 (voca-ostinato)] [1.5 (rhythm 0.25 0.25 0.5 0.25 0.25)] [6.5 (voca-ostinato)])
-    (-- 0 [6.5 (voca-ostinato-^)] [1.5 (seq (^ 3) (^ 5) (^ 8) (^ 5) (^ 3))] [6.5 (voca-ostinato-^)]))]
+    (-- 0 [6.5 (voca-ostinato-^)] [1.5 (seq (ix-- (^ 3) (^ 5) (^ 8) (^ 5) (^ 3)))] [6.5 (voca-ostinato-^)]))]
 
 MOZART
 (speaking)

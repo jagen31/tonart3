@@ -8,16 +8,19 @@
 (set-output-device! 1)
 
 (define sound (perform linuxsampler-performer
-  (put 
-    (seq ; open a sequence to do some voice leading
-      (chords [f 1 M] [g 1 m] [c 1 M 7] [f 1 m] [b 0 m] [a 0 M] [d 0 M] [e 0 dim] [c 1 M 7] [f 1 m])
-      (chord->voiced-chord 4)
-      (put (seq (notes (f 1 2) (b 0 2) (c 1 3) (f 1 2) (b 0 2) (a 0 2) (d 0 3) (e 0 3) (c 1 3) (f 1 2))))
-      (fill-voice 0) ; fill the 0th voice (bassline)
-      (put (seq (notes (f 1 2) (a 0 3) (c 1 4) (f 1 4))))
-      (fill-harmony 0) ; fill the first chord
-      (voice-lead 4) ; fill in the rest of the voice leading
-      ))
+
+  (seq ; start a sequence to do some voice leading
+    (chords [f 1 m] [g 1 m] [c 1 M 7] [f 1 m] [b 0 m] [a 0 M] [d 0 M] [e 0 dim] [c 1 M 7] [f 1 m])
+    (chord->voiced-chord 4)
+
+    (seq (notes (f 1 2) (b 0 2) (c 1 3) (f 1 2) (b 0 2) (a 0 2) (d 0 3) (e 0 3) (c 1 3) (f 1 2)))
+    (fill-voice 0) ; fill the 0th voice (bassline)
+
+    (seq (notes (f 1 2) (a 0 3) (c 1 4) (f 1 4)))
+    (fill-harmony 0) ; fill the first chord
+
+    (voice-lead 4) ; fill in the rest of the voice leading
+    )
 
   (i@ [0 16] ; apply a rhythm to turn the seq into music.  write in the notes for the chords, using some bs.
     (rhythm 2 2 2 2 1 1 1 1 2 2)
@@ -29,7 +32,7 @@
   (d/dt)
   
   (measure@ 1 
-    (instrument-map [organ . 000/003_Montre_8_Prestant_4])
+    (instrument-map [organ . 000/023_Gamba8Doublette2])
     (instrument organ)
     (tempo 120))))
   

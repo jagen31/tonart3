@@ -105,8 +105,8 @@ realize it [[ and it's not a very good way! :) ]].
           ;; loop this every 16
           (loop 16
             ;; just some sequence
-            (-- [8 (seq (^ 1) (^ 2) (^ 3) (^ 2) (^ 1) (^ 0) (^ 1) (^ 2) (^ 3) (^ 4) (^ 5) (^ 6) (^ 7) (^ 8) (^ 5) (^ 8))]
-                [8 (seq (^ 1) (^ 4) (^ 6) (^ 4) (^ 6) (^ 8) (^ 6) (^ 8) (^ 11) (^ 8) (^ 6) (^ 8) (^ 6) (^ 4) (^ 1) (^ 4))]))
+            (-- [8 (seq (ix-- (^ 1) (^ 2) (^ 3) (^ 2) (^ 1) (^ 0) (^ 1) (^ 2) (^ 3) (^ 4) (^ 5) (^ 6) (^ 7) (^ 8) (^ 5) (^ 8)))]
+                [8 (seq (ix-- (^ 1) (^ 4) (^ 6) (^ 4) (^ 6) (^ 8) (^ 6) (^ 8) (^ 11) (^ 8) (^ 6) (^ 8) (^ 6) (^ 4) (^ 1) (^ 4)))]))
           (expand-loop)
           (apply-rhythm)
           (-- [16] [16 (transpose-diatonic 1)] [16 (transpose-diatonic -1)] [16])
@@ -153,7 +153,7 @@ realize it [[ and it's not a very good way! :) ]].
 
   (define result 
     (perform linuxsampler-performer 
-      (put (the-composition-for-computer-perf))
+      (the-composition-for-computer-perf)
       (run-interpretation main)))
        
   (define file (open-output-file "tonart-lib/realizer/electronic/linuxsampler/.test/test.cpp" 

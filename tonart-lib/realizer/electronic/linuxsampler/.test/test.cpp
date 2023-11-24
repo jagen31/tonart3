@@ -19,7 +19,7 @@ auto organ = sampler->AddSamplerChannel();
 organ->SetAudioOutputDevice(device);
 organ->SetEngineType("SFZ");
 organ->GetEngineChannel()->PrepareLoadInstrument(
-(fs::current_path() / ".." / ".." / "resources" / "sfz" / "Jeux14" / "000/003_Montre_8_Prestant_4.sfz").string().c_str(),
+(fs::current_path() / ".." / ".." / "resources" / "sfz" / "Jeux14" / "000/023_Gamba8Doublette2.sfz").string().c_str(),
   0);
 organ->GetEngineChannel()->LoadInstrument();
 

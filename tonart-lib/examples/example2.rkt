@@ -21,11 +21,11 @@
 ;; number of items as the rhythm has (11 for melody, 4 for bass).  but this could be ignored,
 ;; if you decide that sequences are cycles and fill in the missing notes that way. 
 (define-simple-rewriter cool-melody-seq expand-cool-melody-seq
-  (seq (note a 0 3) (note c 0 4) (note d 0 4) (note f 0 4) (note g 0 4)
-   (note f 0 4) (note e 0 4) (note f 0 4) (note e 0 4) (note c 0 4) (note d 0 4)))
+  (seq (ix-- (note a 0 3) (note c 0 4) (note d 0 4) (note f 0 4) (note g 0 4)
+   (note f 0 4) (note e 0 4) (note f 0 4) (note e 0 4) (note c 0 4) (note d 0 4))))
 
 (define-simple-rewriter punchy-4note-seq expand-punchy-4note-seq
-  (seq (note a 0 2) (note b 0 2) (note e 0 3) (note d 0 2)))
+  (seq (ix-- (note a 0 2) (note b 0 2) (note e 0 3) (note d 0 2))))
 
 
 ;; just a logical organization
