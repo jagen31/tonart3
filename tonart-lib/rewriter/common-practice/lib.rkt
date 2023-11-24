@@ -3,7 +3,7 @@
 (require art
          "../../realizer/electronic/lib.rkt"
          "coordinate/metric-interval.rkt"
-         (for-syntax syntax/parse racket/match racket/list "tonality.rkt"))
+         (for-syntax syntax/parse racket/match racket/list "tonality.rkt" (only-in ee-lib compile-reference)))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
 (module+ test (require rackunit (for-syntax rackunit)))
@@ -20,7 +20,7 @@
         (for/list ([n (syntax->list #'(the-note ...))])
          (syntax-parse n
           [(p:id a:number o:number) (qq-art n (note p a o))]))
-       (qq-art stx (seq the-note* ...))])))
+       (qq-art stx (ix-- the-note* ...))])))
 
 ;; convert notes in a context to tones. requires a tuning
 (begin-for-syntax
@@ -238,7 +238,7 @@
          (syntax-parse ch
           [(p:id a:number mods ... {~seq #:v [voice ...]}) (qq-art ch (voiced-chord p a [mods ...] voice ...))]
           [(p:id a:number mods ...) (qq-art ch (chord p a [mods ...]))]))
-       (qq-art stx (seq the-chord* ...))])))
+       (qq-art stx (ix-- the-chord* ...))])))
 
 (define-art-object (relative-harmony [chords]))
 
@@ -293,44 +293,48 @@
   (λ (stx)
     (syntax-parse stx
       [(_ n:number)
-       (define chord-seqs 
-         (filter (λ (e) 
-           (and 
-             (context-within? (get-id-ctxt e) (get-id-ctxt stx) (current-ctxt))
-             (syntax-parse e [(seq ({~or {~datum chord} {~datum voiced-chord}} _ ...) ...) #t] [_ #f]))) (current-ctxt)))
-       #`(@ ()
-       #,@(for/list ([chord-seq chord-seqs])
-         (syntax-parse chord-seq
-           [(_ chord ...)
-            (define empty-hint (build-list (syntax-e #'n) (λ (_) #f)))
-            (define hints 
-              (for/list ([chord (syntax->list #'(chord ...))])
-                (syntax-parse chord
-                  [({~datum chord} p a [mod ...])
-                   empty-hint]
-                  [({~datum voiced-chord} cp ca [cam ...] val ...)
-                   (map (λ (v)
-                     (syntax-parse v
-                       [(p:id a:number o:number) (syntax->datum #'(p a o))]
-                       [{~datum _} #f]))
-                     (syntax->list #'(val ...)))])))
-             (define chords
-              (for/list ([chord (syntax->list #'(chord ...))])
-                (syntax-parse chord
-                  [({~datum chord} p a [m ...])
-                   (syntax->datum #'(p a [m ...]))]
-                  [({~datum voiced-chord} cp ca [cm ...] _ ...)
-                   (syntax->datum #'(cp ca [cm ...]))])))
-             (define result (generate-voice-leading chords hints))
-             (with-syntax ([(result* ...) (for/list ([chord chords] [notes result]) 
-               #`(voiced-chord #,@chord #,@notes))])
-               (qq-art chord-seq (seq result* ...)))])))])))
+       #:do [
+        (define chords
+        ;; FIXME jagen context-ref/within!!!
+          (filter 
+            (λ (e) 
+              (and 
+                (free-identifier=? (car (syntax->list e)) (compile-reference #'voiced-chord))
+                (context-within? (get-id-ctxt e) (get-id-ctxt stx) (current-ctxt))))
+            (current-ctxt)))
+      
+        (define empty-hint (build-list (syntax-e #'n) (λ (_) #f)))
+        (define hints 
+           (for/list ([chord chords])
+             (syntax-parse chord
+               [({~datum chord} p a [mod ...])
+                empty-hint]
+               [({~datum voiced-chord} cp ca [cam ...] val ...)
+                (map (λ (v)
+                  (syntax-parse v
+                    [(p:id a:number o:number) (syntax->datum #'(p a o))]
+                    [{~datum _} #f]))
+                  (syntax->list #'(val ...)))])))
+
+          (define chords*
+            (for/list ([chord chords])
+              (syntax-parse chord
+                [({~datum voiced-chord} cp ca [cm ...] _ ...)
+                 (syntax->datum #'(cp ca [cm ...]))])))
+
+          (define result (generate-voice-leading chords* hints))
+          (println result) ]
+          #:with (result* ...)
+            (flatten
+              (for/list ([old-chord chords] [chord chords*] [notes result]) 
+                (list (delete-expr old-chord) (qq-art old-chord (voiced-chord #,@chord #,@notes)))))
+            #'(@ () result* ...)])))
 
 (define-mapping-rewriter (voiced-chord->note-seq [(: ch voiced-chord)])
   (λ (stx ch)
     (syntax-parse ch
       [(_ _ _ _ (p a o) ...)
-       (qq-art ch (seq (note p a o) ...))])))
+       (qq-art ch (seq (ix-- (note p a o) ...)))])))
 
 (define-mapping-rewriter (chord->voiced-chord [(: ch chord)])
   (λ (stx ch)
@@ -342,31 +346,43 @@
           #:with (uscores ...) (build-list (syntax-e #'n) (λ (_) #'_))
          (qq-art ch (voiced-chord p a o uscores ...))])])))
 
-(define-mapping-rewriter (fill-voice [(: chords? seq)])
-  (λ (stx chords?)
+(define-mapping-rewriter (fill-voice [(: vc voiced-chord)])
+  (λ (stx ch)
     (syntax-parse stx
       [(_ voice-ix:number)
-       #:with (result ...) 
-         (for/fold ([acc '()]) 
-                   ([s chords?])
+       (syntax-parse ch
+        [(_ p a mods voice ...)
+
+         #:do [
            (define the-note-sequences
-             (filter (λ (x) (syntax-parse x [(_ ((~datum note) _ ...)) #t] [_ #f]))
-                     (context-ref*/surrounding (current-ctxt) (get-id-ctxt s) #'seq)))
-           (when (null? the-note-sequences) (raise-syntax-error 'fill-voice "oops" chords?))
+             (filter (λ (x) (println x) (syntax-parse x [(_ ({~datum note} _ ...) ...) #t] [_ #f]))
+                     (context-ref*/surrounding (current-ctxt) (get-id-ctxt ch) #'seq)))
+           (when (null? the-note-sequences) (raise-syntax-error 'fill-voice "oops" ch))
            (define the-note-sequence 
              (syntax-parse (car the-note-sequences)
-               [(_ ns ...) (syntax->list #'(ns ...))]))
-           (syntax-parse s
-             [(_ {~and cd ({~datum voiced-chord} _ ...)} ...)
-              (for/list ([chord (syntax->list #'(cd ...))] [i (in-naturals)])
-                (syntax-parse chord
-                  [(_ p a o voice ...)
-                   #:with (voice* ...) 
-                     (list-set (syntax->list #'(voice ...)) (syntax-e #'voice-ix) 
-                       (list-ref the-note-sequence i))
-                   (qq-art chord (voiced-chord p a o voice* ...))]))]
-             [_ acc]))
-          #'(@ () result ...)])))
+               [(_ (_ p a o) ...) (syntax->list #'((p a o) ...))]))
+         ]
+         #:with (voice* ...) 
+           (list-set (syntax->list #'(voice ...)) (syntax-e #'voice-ix) 
+             (list-ref the-note-sequence 
+               (syntax-parse (context-ref (get-id-ctxt ch) #'index)
+                 [(_ ix:number) (syntax-e #'ix)])))
+         (qq-art ch (voiced-chord p a mods voice* ...))])])))
 
-#;(define-mapping-rewriter fill-harmony
-  )
+(define-mapping-rewriter (fill-harmony [(: ch voiced-chord)])
+  (λ (stx ch)
+    (syntax-parse stx
+      [(_ chord-ix:number)
+       #:when 
+         (syntax-parse (context-ref (get-id-ctxt ch) #'index)
+           [(_ ix:number) (= (syntax-e #'chord-ix) (syntax-e #'ix))])
+       (syntax-parse ch
+         [(_ p a mods _ ...)
+          #:do [
+            (define the-note-sequences
+              (filter (λ (x) (println x) (syntax-parse x [(_ ({~datum note} _ ...) ...) #t] [_ #f]))
+                      (context-ref*/surrounding (current-ctxt) (get-id-ctxt ch) #'seq)))
+            (when (null? the-note-sequences) (raise-syntax-error 'fill-voice "oops" ch))]
+          #:with (_ (_ p* a* o*) ...) (car the-note-sequences)
+          (qq-art ch (voiced-chord p a mods (p* a* o*) ...))])]
+      [_ ch])))
