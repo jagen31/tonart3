@@ -1,6 +1,6 @@
 #lang racket
 
-(require art
+(require art art/sequence/lib art/timeline/lib
          "../stdlib.rkt" "../common-practice/lib.rkt" (for-syntax syntax/parse))
 (provide (all-defined-out))
 

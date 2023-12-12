@@ -36,7 +36,7 @@ Here is the jam:
         (key+starting-chord-related-by-aug-5th right-hand left-hand)
         (ss@ (left-hand) (the-comp-harmony) (the-comp-rhythm))
         (ss@ (right-hand) (the-solo-rhythm))
-        (run-interpretation main))])]
+        (interpret main))])]
 
 `key+starting-chord-related-by-aug-5th` is obviously not a standard library rewriter, it is something 
 specific to our composition.  It indicates that the key of the solo is related to the starting chord 
@@ -77,7 +77,7 @@ in Ab/Db.
     [the-composition-for-perf
       (i@ (0 8)
         (the-composition)
-        (run-interpretation main)
+        (interpret main)
         ;; it's in a flat! (and d flat)
         (->key+starting-chord a -1)
         (ss@ (left-hand) 
@@ -99,7 +99,7 @@ realize it [[ and it's not a very good way! :) ]].
         ;; loop it every 8 beats (for a total of 8 times.  Sorry for the confusion, the 8 means every 8 beats.)
         (loop 8 (the-composition-for-perf))
         (expand-loop)
-        (run-interpretation main)
+        (interpret main)
 
         (ss@ (right-hand) 
           ;; loop this every 16
@@ -128,15 +128,18 @@ realize it [[ and it's not a very good way! :) ]].
                         [trumpet . 000/065_Quintadena_8])
         (ss@ (left-hand) (instrument organ))
         (ss@ (right-hand) (instrument trumpet))
-        (tempo 120)
 
         ;; convert measure intervals to raw beat intervals
         (metric-interval->interval)
+        (midi->full-midi)
         ;; convert to on/off events
-        (d/dt))])]
+        (d/dt))
+        
+      #;(tempo 120)
+      #;(apply-tempo)])]
 
 @chunk[<*>
-  (require art
+  (require (except-in art number) art/sequence/lib art/timeline/lib
     "../rewriter/stdlib.rkt" 
     "../rewriter/common-practice/lib.rkt"
     "../rewriter/common-practice/tonality.rkt"
@@ -149,12 +152,12 @@ realize it [[ and it's not a very good way! :) ]].
 
   <the-definitions>
   <the-music>
-  #;(displayln (perform quote-performer (put (the-composition-for-computer-perf)) (run-interpretation main)))
+  #;(displayln (perform quote-performer (put (the-composition-for-computer-perf)) (interpret main)))
 
   (define result 
-    (perform linuxsampler-performer 
+    (perform (linuxsampler-performer) 
       (the-composition-for-computer-perf)
-      (run-interpretation main)))
+      (interpret main)))
        
   (define file (open-output-file "tonart-lib/realizer/electronic/linuxsampler/.test/test.cpp" 
                                    #:exists 'replace))

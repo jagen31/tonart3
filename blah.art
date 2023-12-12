@@ -1,0 +1,6 @@
+(measure@ 1 (st-flavian))
+(st-flavian->^s)
+(measure@ 1 (seq (voiced-chord f 0 (major) (c 0 4) (a 0 3) (f 0 3)) (voiced-chord c 0 (sus) _ _ (c 0 3)) (voiced-chord c 0 (sus) _ _ (c 0 3)) (voiced-chord f 0 (major) _ _ (f 0 3)) (voiced-chord f 0 (major) _ _ (a 0 2)) (voiced-chord b -1 (major) _ _ (b -1 2)) (voiced-chord c 0 (major) _ _ (c 0 3)) (voiced-chord f 0 (major) _ _ (f 0 2)) (voiced-chord f 0 (major) _ _ (f 0 3)) (voiced-chord d 0 (major) _ _ (d 0 3)) (voiced-chord f 0 (major) _ _ (f 0 3)) (voiced-chord b -1 (major) _ _ (b -1 3)) (voiced-chord b -1 (major) _ _ (b -1 3)) (voiced-chord a 0 (major) _ _ (a 0 3)) (voiced-chord f 0 (major) _ _ (f 0 3)) (voiced-chord f 0 (major) _ _ (f 0 3)) (voiced-chord d 0 (minor) _ _ (d 0 3)) (voiced-chord c 0 (major) _ _ (e 0 3)) (voiced-chord a 0 (minor) _ _ (c 0 3)) (voiced-chord d 0 (minor) _ _ (d 0 3)) (voiced-chord c 0 (major) _ _ (c 0 3)) (voiced-chord f 0 (major) _ _ (f 0 3)) (voiced-chord f 0 (major) _ _ (f 0 3)) (voiced-chord d 0 (minor) _ _ (d 0 3)) (voiced-chord b 0 (major) _ _ (b -1 2)) (voiced-chord c 0 (major) _ _ (c 0 3)) (voiced-chord f 0 (major) _ _ (f 0 3))))
+(voice-lead 3)
+(measure@ 1 (st-flavian))
+(st-flavian->rhythm)

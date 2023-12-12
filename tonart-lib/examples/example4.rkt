@@ -1,6 +1,6 @@
 #lang racket
 
-(require art
+(require art art/sequence/lib art/timeline/lib
          "../rewriter/stdlib.rkt" "../rewriter/common-practice/lib.rkt" 
          "../realizer/electronic/lib.rkt" 
          "../realizer/electronic/linuxsampler/lib.rkt"
@@ -19,14 +19,14 @@
     )
 
 #;(define linuxsampler-string
-  (perform linuxsampler-performer 
+  (perform (linuxsampler-performer) 
     (i@ [0 18] (the-music))
     (expand-the-music)
     (i@ [0 18] (tempo 120) (instrument strings) (note->midi) (d/dt)) ; to midi events
     ))
 
 #;(define musicxml-string 
-  (perform musicxml-performer
+  (perform (musicxml-performer)
     (i@ [0 18] (the-music))
     (expand-the-music) ; leave as notes
     ))
@@ -35,7 +35,7 @@
 #;(displayln musicxml-string)
 
 #;(define result 
-  (perform music-rsound-performer 
+  (perform (music-rsound-performer) 
 
     ;; the keys
     (ss@ (accomp) (-- 0 [3 (key d 0 major)] [3 (key c 0 minor)] [3 (key g 0 major)]))
@@ -56,7 +56,7 @@
     (measure@ 1 (tempo 120) (expand-loop) (^->note) (note->midi))))
 
 (define result
-  (perform linuxsampler-performer
+  (perform (linuxsampler-performer)
   (ss@ (accomp)
     (seq (chords (c 1 m #:v [(g 1 3) (c 1 4) (e 0 4)]) (a 0 M) (d 0 M) (g 1 M 7) (c 1 m) (g 1 sus 4) 
             (b 1 dim #:v [(f 1 3) _ _]) 
@@ -66,12 +66,14 @@
          (chord->voiced-chord 3)
          (voice-lead 3) ; [seq [voiced-chord 3]]
     )
-
     (rhythm 8 2 2 1 1 1 1 1 3 4 2 2 2 2 4 4 4)
     (apply-rhythm)
+
+    (i@ [0 44] (loop 1 (i@ [0 1] (seq (ix-- (! 0) (! 1) (! 2))) (rhythm 1/3 1/3 1/3)))
+               (expand-loop) (apply-rhythm))
+
     (voiced-chord->note-seq)
-    (i@ [0 48] (loop 1 (-- [1/3 (! 0)] [1/3 (! 1)] [1/3 (! 2)]))
-               (expand-loop) (apply-rhythm) (seq-ref))
+    (seq-ref)
 
     (instrument piano))
 
@@ -80,7 +82,9 @@
                 (e 0 3) (e 0 3) (d 0 3)))
     (rhythm 4 4 2 2 4 4 4 2 2 2 2 4 4 4)
     (apply-rhythm)
-    (instrument pedal))
+    (instrument pedal)
+    (instrument piano)
+    (instrument flute))
 
   (ss@ (melody)
     (mi@ [(5 4) (10 4)]
@@ -102,6 +106,8 @@
       [flute . 000/003_Montre_8_Prestant_4])
     (tempo 66)
     (metric-interval->interval)
+    (apply-tempo)
+    (midi->full-midi)
     (d/dt))))
 
 #|
@@ -118,7 +124,7 @@
 #;(define-simple-rewriter flammis-rhythm expand-flammis
     (-- [5 (rhythm 0.75 0.25 0.75 0.25 0.75 0.25 1 1)]))
 
-#;(perform quote-performer
+#;(perform (quote-performer)
   (i@ [0 24]
     (music@ [(4 4) (basses)]
       (-- [2 (seq (ix-- (note d 0 4) (note d 0 4) (note d 0 4) (note e 0 3)))]

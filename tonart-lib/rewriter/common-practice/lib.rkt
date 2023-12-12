@@ -1,9 +1,9 @@
 #lang racket
 
-(require art
+(require art art/sequence/lib art/timeline/lib
          "../../realizer/electronic/lib.rkt"
          "coordinate/metric-interval.rkt"
-         (for-syntax syntax/parse racket/match racket/list "tonality.rkt" (only-in ee-lib compile-reference)))
+         (for-syntax syntax/parse racket/match racket/list "tonality.rkt"))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
 (module+ test (require rackunit (for-syntax rackunit)))
@@ -34,14 +34,14 @@
        (for/fold ([acc '()] #:result (reverse acc)) 
                  ([expr (current-ctxt)])
          (syntax-parse expr
-           [({~datum note} p a o)
+           [({~literal note} p a o)
             (define semis
               (match (syntax-e #'p)
                 ['c 0] ['d 2] ['e 4] ['f 5] ['g 7] ['a 9] ['b 11]))
             (define tuning (context-ref/surrounding (current-ctxt) (get-id-ctxt expr) #'tuning))
             (unless tuning (raise-syntax-error 'note->tone "no tuning in context for note" expr))
             (syntax-parse tuning
-              [({~datum tuning} {~datum 12tet})
+              [({~literal tuning} {~literal 12tet})
                (with-syntax ([tone-stx (quasisyntax/loc expr (tone #,(semitone->freq (modulo (+ semis (syntax-e #'a)) 12) (syntax-e #'o))))])
                  (values (cons (qq-art expr (put tone-stx)) (cons (delete-expr expr) acc))))])]
            [_ acc]))
@@ -56,7 +56,7 @@
          (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
                    ([expr (current-ctxt)])
            (syntax-parse expr
-             [({~datum note} p a o)
+             [({~literal note} p a o)
               (define semis
                 (match (syntax-e #'p)
                   ['c 0] ['d 2] ['e 4] ['f 5] ['g 7] ['a 9] ['b 11]))
@@ -82,9 +82,9 @@
            (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
                      ([expr (current-ctxt)])
              (syntax-parse expr
-               [({~datum ^} ix:number)
+               [({~literal ^} ix:number)
                 (syntax-parse (context-ref/surrounding (current-ctxt) (get-id-ctxt expr) #'key)
-                  [({~datum key} pitch:id accidental:number mode:id)
+                  [({~literal key} pitch:id accidental:number mode:id)
                    (define octave 
                      (syntax-parse (context-ref/surrounding (current-ctxt) (get-id-ctxt expr) #'octave)
                        [(octave o:number) (syntax-e #'o)]))
@@ -113,7 +113,7 @@
                      ;; FIXME jagen
                      ([expr (filter (λ (e) (context-within? (get-id-ctxt e) (get-id-ctxt expr) (current-ctxt))) (current-ctxt))])
              (syntax-parse expr
-               [({~datum ^} ix:number)
+               [({~literal ^} ix:number)
                 (values (cons (qq-art expr (put (^ #,(+ (syntax-e #'val) (syntax-e #'ix))))) acc1) (cons (delete-expr expr) acc2))]
                [_ (values acc1 acc2)])))
          (append deletes exprs))
@@ -269,22 +269,22 @@
           (qq-art harm (seq (ix-- chords ...)))])])))
 
 (define-mapping-rewriter (chord->notes/simple [(: crd chord)])
-    (λ (stx crd)
-      (syntax-parse stx
-        [(_ octave*:number)
-         (syntax-parse crd
-           [(_ root accidental [mod ...])
-            #:do [ 
-              (define octave (syntax-e #'octave*))
-              (define pcs (generate-chord (syntax-e #'root) (syntax-e #'accidental) (syntax->datum #'(mod ...))))
-              (define cdis (distance-above-c (caar pcs)))]
-            #:with (result ...)
-              (for/list ([pc pcs])
-                (with-syntax ([p (first pc)] 
-                              [a (second pc)] 
-                              [o (if (>= (distance-above-c (first pc)) cdis) octave (add1 octave))])
-                  (qq-art crd (note p a o))))
-            #'(@ () result ...)])])))
+  (λ (stx crd)
+    (syntax-parse stx
+      [(_ octave*:number)
+       (syntax-parse crd
+         [(_ root accidental [mod ...])
+          #:do [ 
+            (define octave (syntax-e #'octave*))
+            (define pcs (generate-chord (syntax-e #'root) (syntax-e #'accidental) (syntax->datum #'(mod ...))))
+            (define cdis (distance-above-c (caar pcs)))]
+          #:with (result ...)
+            (for/list ([pc pcs])
+              (with-syntax ([p (first pc)] 
+                            [a (second pc)] 
+                            [o (if (>= (distance-above-c (first pc)) cdis) octave (add1 octave))])
+                (qq-art crd (note p a o))))
+          #'(@ () result ...)])])))
 
 (define-art-object (voiced-chord [pitch accidental mode notes ...]))
 
@@ -299,7 +299,7 @@
           (filter 
             (λ (e) 
               (and 
-                (free-identifier=? (car (syntax->list e)) (compile-reference #'voiced-chord))
+                (free-identifier=? (car (syntax->list e)) #'voiced-chord)
                 (context-within? (get-id-ctxt e) (get-id-ctxt stx) (current-ctxt))))
             (current-ctxt)))
       
@@ -307,19 +307,19 @@
         (define hints 
            (for/list ([chord chords])
              (syntax-parse chord
-               [({~datum chord} p a [mod ...])
+               [({~literal chord} p a [mod ...])
                 empty-hint]
-               [({~datum voiced-chord} cp ca [cam ...] val ...)
+               [({~literal voiced-chord} cp ca [cam ...] val ...)
                 (map (λ (v)
                   (syntax-parse v
                     [(p:id a:number o:number) (syntax->datum #'(p a o))]
-                    [{~datum _} #f]))
+                    [{~literal _} #f]))
                   (syntax->list #'(val ...)))])))
 
           (define chords*
             (for/list ([chord chords])
               (syntax-parse chord
-                [({~datum voiced-chord} cp ca [cm ...] _ ...)
+                [({~literal voiced-chord} cp ca [cm ...] _ ...)
                  (syntax->datum #'(cp ca [cm ...]))])))
 
           (define result (generate-voice-leading chords* hints))
@@ -355,7 +355,7 @@
 
          #:do [
            (define the-note-sequences
-             (filter (λ (x) (println x) (syntax-parse x [(_ ({~datum note} _ ...) ...) #t] [_ #f]))
+             (filter (λ (x) (println x) (syntax-parse x [(_ ({~literal note} _ ...) ...) #t] [_ #f]))
                      (context-ref*/surrounding (current-ctxt) (get-id-ctxt ch) #'seq)))
            (when (null? the-note-sequences) (raise-syntax-error 'fill-voice "oops" ch))
            (define the-note-sequence 
@@ -380,7 +380,7 @@
          [(_ p a mods _ ...)
           #:do [
             (define the-note-sequences
-              (filter (λ (x) (println x) (syntax-parse x [(_ ({~datum note} _ ...) ...) #t] [_ #f]))
+              (filter (λ (x) (println x) (syntax-parse x [(_ ({~literal note} _ ...) ...) #t] [_ #f]))
                       (context-ref*/surrounding (current-ctxt) (get-id-ctxt ch) #'seq)))
             (when (null? the-note-sequences) (raise-syntax-error 'fill-voice "oops" ch))]
           #:with (_ (_ p* a* o*) ...) (car the-note-sequences)

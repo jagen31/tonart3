@@ -39,7 +39,7 @@
 
   ;; capable of performing (@ [instrument] midi), tone
   ;; proof in the comments
-  music-rsound-performer
+  (music-rsound-performer)
 
   (i@ [0 32] (the-music) (the-notes))
 
@@ -68,6 +68,7 @@
     ;; => midi, (seq note), instrument
     ;; performer will ignore the seq. midi is present w/ instrument and will be performed QED
     (tempo 120)
+    (apply-tempo)
     )))
 
 (set-output-device! 1)

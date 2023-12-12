@@ -460,15 +460,15 @@ now!
 @chunk[<the-footer>
   (measure@ 1
     (metric-interval->interval)
-    (run-interpretation confutatis)
+    (interpret confutatis)
     (expand-loop) (apply-rhythm) ; repeats and rhythms
     (run-transpose-diatonic) (^->note) ; working with scale degrees
-    (note->midi) (d/dt) ; ready to render
+    (note->midi) (midi->full-midi) (apply-tempo) (d/dt) ; ready to render
     )]
 
 
 @chunk[<*>
-  (require art
+  (require art art/sequence/lib art/timeline/lib
     "../rewriter/stdlib.rkt" 
     "../rewriter/common-practice/lib.rkt"
     "../rewriter/common-practice/coordinate/metric-interval.rkt"
@@ -479,7 +479,7 @@ now!
   <the-definitions>
 
     (define sound 
-      (perform linuxsampler-performer
+      (perform (linuxsampler-performer)
        <the-header> 
        (-- [24 <the-confutatis>] [15 <the-voca>])
        <the-footer>))
@@ -490,7 +490,7 @@ now!
     (close-output-port file)
     
     #;(define xml
-      (perform musicxml-performer
+      (perform (musicxml-performer)
        <the-header> 
        (-- [24 <the-confutatis>] [15 <the-voca>])
        <the-footer>))

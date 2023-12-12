@@ -1,6 +1,6 @@
 #lang at-exp racket
 
-(require art "../../../rewriter/stdlib.rkt" "../lib.rkt" racket/runtime-path
+(require art art/timeline/lib "../../../rewriter/stdlib.rkt" "../lib.rkt" racket/runtime-path
   (for-syntax syntax/parse racket/match racket/list racket/string racket/dict) rsound rsound/envelope sf2-parser)
 (provide (all-defined-out))
 
@@ -9,7 +9,7 @@
   (syntax-parse stx
     [(_ n:id {subperformer:id ...})
      #'(begin
-         (define-composite-performer n {subperformer ...} [] 
+         (define-composite-realizer n {subperformer ...} [] 
            (λ(clauses)
               #`(begin
                   (define-values (note-statements instruments)
@@ -75,26 +75,25 @@ auto |@(car iname) = sampler->AddSamplerChannel();
     (for/foldr ([acc '()])
                ([stx ctxt])
       (syntax-parse stx
-        [({~datum midi} num:number) 
-         (define instrument (context-ref/surrounding ctxt (get-id-ctxt stx) #'instrument))
-         (define tempo (context-ref/surrounding ctxt (get-id-ctxt stx) #'tempo))
+        [({~literal full-midi} num:number velocity:number [instrument-name:id ...]) 
          (define instant (context-ref (get-id-ctxt stx) #'instant))
          (define switch (context-ref (get-id-ctxt stx) #'switch))
-         (unless instrument (raise-syntax-error 'midi-subperformer (format "no instrument in context for midi: ~s" (un-@ stx)) stx))
-         (unless tempo (raise-syntax-error 'midi-subperformer "no tempo in context for midi" stx))
          (unless instant (raise-syntax-error 'midi-subperformer (format "this performer requires an instant for all midis, got: ~s" (un-@ stx)) stx))
          (unless switch (raise-syntax-error 'midi-subperformer (format "this performer requires a switch for all midis, got: ~s" (un-@ stx)) stx))
-         (syntax-parse #`(#,instrument #,tempo #,instant #,switch)
-           [((_ instrument-name:id) (_ tempo*:number) (_ time) (_ on?))
-            (define instrument-name* (syntax-e #'instrument-name))
-            (cons #`(list 
-                      (exact->inexact (/ time (/ tempo* 60)))
-                      #,(symbol->string instrument-name*)
-                      #,(symbol->string (dict-ref imap instrument-name*))
-                      (if on?
-                        (format "~a->GetEngineChannel()->SendNoteOn(~a, 80, 0);" '#,instrument-name* num)
-                        (format "~a->GetEngineChannel()->SendNoteOff(~a, 80, 0);" '#,instrument-name* num)))
+         (syntax-parse #`(#,instant #,switch)
+           [((_ time) (_ on?))
+            (define instrument-names (syntax->datum #'(instrument-name ...)))
+            (append 
+              (for/list ([instrument-name* instrument-names])
+                #`(list 
+                    (exact->inexact time)
+                    #,(symbol->string instrument-name*)
+                    #,(symbol->string (dict-ref imap instrument-name*))
+                    (if on?
+                      (format "~a->GetEngineChannel()->SendNoteOn(~a, ~a, 0);" '#,instrument-name* num velocity)
+                      (format "~a->GetEngineChannel()->SendNoteOff(~a, ~a, 0);" '#,instrument-name* num velocity))))
               acc)])]
+        [({~literal midi} _) (raise-syntax-error 'linuxsampler-midi-subperformer "expected full midi objects, got a normal midi" stx)]
         [_ acc]))))
 
 

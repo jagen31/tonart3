@@ -267,6 +267,8 @@
   (generate-next-voice-leading '(f 0 (major)) '(#f #f #f (f 0 3)) '((c 0 5) (g 0 4) (e 0 4) (c 0 3))))
 
 (define (generate-voice-leading chords hints)
+  (println chords)
+  (println hints)
   (define fst (car hints))
   (unless (andmap (λ(x) x) fst) (error 'generate-voice-leading "requires a starting chord"))
   (for/fold ([acc (list fst)] #:result (reverse acc))
@@ -282,3 +284,33 @@
   (generate-voice-leading 
     '((c 1 (minor)) (a 0 (major)) (d 0 (major)) (g 1 (major)) (c 1 (minor)) (c 1 (minor)) (g 1 (major))) 
     '(((e 0 4) (c 1 4) (g 1 3)) (#f #f #f)(#f #f #f)(#f #f #f)(#f #f #f)(#f #f #f)(#f #f #f))))
+
+(define (beats->seconds beats tempo)
+  (* beats (/ 60 tempo)))
+
+(module+ test
+  (check-equal? (beats->seconds 6 120) 3))
+
+(define (interval-intersection i1 i2)
+  (match* (i1 i2)
+    [((list s1 e1) (list s2 e2))
+     (define maxs (max s1 s2))
+     (define mine (min e1 e2))
+     (and (< maxs mine) (list maxs mine))]))
+
+(define (normalize-tempo-interval tempo-interval tempo interval)
+  (match* (tempo-interval interval)
+    [((list s1 e1) (list s2 e2))
+     (define total-amount (- e1 s1))
+     (match-define (list int-s int-e) (or (interval-intersection tempo-interval interval) '(0 0)))
+
+     (define beats-before (if (< s1 s2) (- s2 s1) 0))
+     (define beats-during (- int-e int-s))
+
+     (define seconds-before (- (beats->seconds beats-before tempo) beats-before))
+     (define seconds-during (- (beats->seconds beats-during tempo) beats-during))
+     
+     (list (+ s2 seconds-before) (+ e2 seconds-before seconds-during))]))
+
+(module+ test
+  (check-equal? (normalize-tempo-interval '(3 12) 180 '(6 18)) '(4 12)))

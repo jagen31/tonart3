@@ -1,6 +1,6 @@
 #lang racket
 
-(require art
+(require art art/timeline/lib art/sequence/lib
          "../rewriter/stdlib.rkt" "../rewriter/common-practice/lib.rkt"
          "../rewriter/church/hymn.rkt"
          "../realizer/electronic/lib.rkt"
@@ -10,9 +10,10 @@
 (define-simple-rewriter my-music my-music->objs 
   (@ () (! 0) (! 1) (! 2)))
 
-(define test (perform music-rsound-performer 
+(define test (perform (music-rsound-performer) 
   (i@ [0 4] (tone 440))
   (i@ [0 6] (loop 2 (my-music))) ;; -> my-music => my-music
+  (expand-loop)
   (pocket-rewrite
     (i@ [0 12] (instrument |Violin|))
     (i@ [0 10] (midi 61))
@@ -42,11 +43,11 @@
   (i@ [0 100] (put (tuning 12tet))) ;; -> tuning => !, seq, tuning
   (note->tone) ; note@tuning -> tone => tone, seq, tuning
   (measure@ 1 (tempo 120))
-))
+  (apply-tempo)))
 
 (set-output-device! 1)
 
-#;(perform music-pstream-performer 
+#;(perform (music-pstream-performer)
   (musi@ [2 32 (one)] (instrument Clarinet))
   (-- 2 [15 (loop 6 (musi@ [0 6 (one)] (rhythm 2 2 2)))] [15 (loop 6 (musi@ [0 6 (one)] (rhythm 1 1 1)))])
   (musi@ [2 32 (one)] (expand-loop))
