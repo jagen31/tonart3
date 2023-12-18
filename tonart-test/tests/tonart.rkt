@@ -1,9 +1,6 @@
 #lang racket
 
-(require art (for-syntax ee-lib) 
-  tonart/rewriter/common-practice/main 
-  tonart/realizer/electronic/rsound/main
-  tonart/realizer/electronic/linuxsampler/lib)
+(require tonart/linuxsampler)
 
 (set-output-device! 1)
 
@@ -31,7 +28,7 @@
     (! 0) (! 1) (! 2) (! 3) (! 4) (fill-holes !) (seq-ref))
   ])
 
-(define sound (perform linuxsampler-performer 
+(define sound (realize linuxsampler-realizer 
   (measure@ 1 
     (instrument-map 
       [organ1 . |000/000_Montre_8|]

@@ -1,8 +1,8 @@
 #lang racket
 
-(require art art/timeline/lib art/sequence/lib
+(require art art/timeline art/sequence
          (for-syntax syntax/parse racket/list racket/match
-                     tonart/rewriter/common-practice/tonality))
+                     tonart/liszt))
 (provide (all-defined-out))
 
 ;; define-coordinate interval (copy-coordinate std:interval) or something
@@ -52,13 +52,13 @@
                          (list (syntax-e #'expr-s) (syntax-e #'expr-e))))
                      (put-in-id-ctxt expr #`(interval (start #,s**) (end #,e**)))])]
                  [else expr]))])))
-    #`(@ () #,@(map delete-expr tempos) #,@(map delete-expr rest-ctxt) (put #,@new-ctxt))))
+    #`(@ () #,@(map delete-expr tempos) #,@(map delete-expr rest-ctxt) (context #,@new-ctxt))))
 
 (define-art-embedding (music [items])
   (λ (stx ctxt)
     (syntax-parse stx
       [(head:id expr ...)
-       (compile-rewrite-exprs (list (quasisyntax/loc stx (@ () expr ...))) '())])))
+       (rewrite (quasisyntax/loc stx (@ () expr ...)))])))
 
 (define-mapping-rewriter (rewrite-in-music [(: s music)])
   (λ (stx s)
@@ -67,7 +67,7 @@
        (syntax-parse s
          [(_ exprs* ...)
            #:with (result ...) 
-             (compile-rewrite-exprs 
+             (run-art-exprs
                (syntax->list #'(exprs ...)) (syntax->list #'(exprs* ...)))
            #`(@ () #,(delete-expr s) #,(qq-art s (music result ...)))])])))
 

@@ -1,8 +1,8 @@
 #lang racket
 
-(require art art/timeline/lib "../../../rewriter/stdlib.rkt" "../lib.rkt" racket/runtime-path
-  (for-syntax syntax/parse racket/match racket/list racket/string racket/dict) 
-  rsound rsound/envelope sf2-parser)
+(require art art/timeline tonart/private/rewriter/lib tonart/private/realizer/electronic/lib 
+  racket/runtime-path rsound rsound/envelope sf2-parser
+  (for-syntax syntax/parse racket/match racket/list racket/string racket/dict) )
 (provide (all-defined-out))
 
 ;; load fluid by default
@@ -12,13 +12,13 @@
    (open-input-file
     (build-path soundfont-path "FluidR3_GM.sf2"))))
 
-;;;;;;;;;; PERFORMER FAMILIES- use other performers to stream/make a sound.
+;;;;;;;;;; realizer FAMILIES- use other realizers to stream/make a sound.
 ;; stream directly to pstream
 (define-syntax (define-composite-pstream-realizer stx)
   (syntax-parse stx
-    [(_ n:id {subperformer:id ...})
+    [(_ n:id {subrealizer:id ...})
      #'(begin
-         (define-composite-realizer n {subperformer ...} [(define pstream (make-pstream))] 
+         (define-composite-realizer n {subrealizer ...} [(define pstream (make-pstream))] 
            (λ(clauses) 
               #`(let ()
                  #,@(for/list ([expr clauses])
@@ -28,9 +28,9 @@
 ;; create an rsound
 (define-syntax (define-composite-rsound-realizer stx)
   (syntax-parse stx
-    [(_ n:id {subperformer:id ...})
+    [(_ n:id {subrealizer:id ...})
      #'(begin
-         (define-composite-realizer n {subperformer ...} [(define pstream (make-pstream))] 
+         (define-composite-realizer n {subrealizer ...} [(define pstream (make-pstream))] 
            (λ(clauses) 
               (define result #`(let ()
                  #,(for/fold ([acc #'(silence 1)])
@@ -41,10 +41,10 @@
                           (rs-overlay (rs-scale 0.05 silence+sound) #,acc)))))
          #`(rs-scale 4 #,result))))]))
 
-;; subperformer for performing tones from a context
+;; subrealizer for performing tones from a context
 (define (get-duration start end tempo)
   (round (* (/ (- end start) (/ tempo 60)) (default-sample-rate))))
-(define-subperformer tone-subperformer
+(define-subrealizer tone-subrealizer
   (λ(ctxt)
     (for/foldr ([acc '()])
                ([stx ctxt])
@@ -70,21 +70,21 @@
 
 (define def (default-sample-rate))
 
-(define-subperformer midi-subperformer
+(define-subrealizer midi-subrealizer
   (λ(ctxt)
-    (println "running midi subperformer")
+    (println "running midi subrealizer")
     (for/foldr ([acc '()])
                ([stx ctxt])
       (println stx)
       (syntax-parse stx
         [({~literal midi} num:number) 
          (define iv (context-ref (get-id-ctxt stx) #'interval))
-         (unless iv (raise-syntax-error 'midi-subperformer 
-           (format "this performer requires beat intervals for all midis, got: ~s" (syntax->datum (un-@ stx))) stx))
+         (unless iv (raise-syntax-error 'midi-subrealizer 
+           (format "this realizer requires beat intervals for all midis, got: ~s" (syntax->datum (un-@ stx))) stx))
          (define-values (start* end*) (syntax-parse iv
            [({~literal interval} ({~literal start} val:number) ({~literal end} val2:number)) (values (syntax-e #'val) (syntax-e #'val2))]))
          (define instrument (context-ref/surrounding ctxt (get-id-ctxt stx) #'instrument))
-         (unless instrument (raise-syntax-error 'midi-subperformer "no instrument in context for midi" stx))
+         (unless instrument (raise-syntax-error 'midi-subrealizer "no instrument in context for midi" stx))
          (syntax-parse instrument
            [({~literal instrument} name:id)
             (cons #`(let ([duration (get-duration #,start* #,end* 60)]) 
@@ -94,5 +94,5 @@
               acc)])]
         [_ acc]))))
 
-(define-composite-pstream-realizer music-pstream-performer {tone-subperformer midi-subperformer})
-(define-composite-rsound-realizer music-rsound-performer {tone-subperformer midi-subperformer})
+(define-composite-pstream-realizer music-pstream-realizer {tone-subrealizer midi-subrealizer})
+(define-composite-rsound-realizer music-rsound-realizer {tone-subrealizer midi-subrealizer})

@@ -20,12 +20,12 @@
       (when looping (loop))))))
 
 ;; FIXME jagen31 define this here to declare the intent to optimize this in the future with
-;; some static analysis/annotations on the performer and the composition
+;; some static analysis/annotations on the realizer and the composition
 (define-for-syntax (needs-recompile) #t)
 
 (define-for-syntax (get-recompile-expr)
   (if (needs-recompile)
-      #`(begin (println "recompiling!") (set-box! the-sound (perform music-rsound-performer #,@(gvector->list the-exprs))))
+      #`(begin (println "recompiling!") (set-box! the-sound (realize music-rsound-realizer #,@(gvector->list the-exprs))))
       #`(void)))
 
 (define-syntax (#%top-interaction stx)
@@ -72,6 +72,6 @@
     [(_ . ({~literal show-compiled} expr ...))
     #:with (result ...) (append (gvector->list the-exprs) (syntax->list #'(expr ...)))
     (println #'(result ...))
-     #`(perform quote-performer result ...)]
+     #`(realize quote-realizer result ...)]
     [(_ . ({~literal racket} expr))
      #'expr]))

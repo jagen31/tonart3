@@ -1,9 +1,10 @@
 #lang racket
 
-(require art art/sequence/lib art/timeline/lib
-         "../../realizer/electronic/lib.rkt"
-         "coordinate/metric-interval.rkt"
-         (for-syntax syntax/parse racket/match racket/list "tonality.rkt"))
+(require art art/sequence art/timeline
+         tonart/private/realizer/electronic/lib
+         tonart/private/rewriter/common-practice/coordinate/metric-interval
+         2htdp/image
+         (for-syntax syntax/parse racket/match racket/list tonart/liszt 2htdp/image))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
 (module+ test (require rackunit (for-syntax rackunit)))
@@ -21,6 +22,19 @@
          (syntax-parse n
           [(p:id a:number o:number) (qq-art n (note p a o))]))
        (qq-art stx (ix-- the-note* ...))])))
+
+(define-syntax note-drawer 
+  (drawer/s
+    (λ (e width height)
+      (syntax-parse e
+        [({~literal note} p a o)
+         (define-values (qh 3qh hw) (values (* height 1/4) (* height 3/4) (* width 1/2)))
+         #`(overlay hw 3qh 
+             (overlay 
+               (text #,(format "~a~a~a" (syntax-e #'p) (syntax-e #'a) (syntax-e #'o)) 24 'blue) 
+               (circle 15 'outline 'blue))
+             (rectangle width height 'solid 'transparent)) ]
+        [_ #f]))))
 
 ;; convert notes in a context to tones. requires a tuning
 (begin-for-syntax
@@ -43,7 +57,7 @@
             (syntax-parse tuning
               [({~literal tuning} {~literal 12tet})
                (with-syntax ([tone-stx (quasisyntax/loc expr (tone #,(semitone->freq (modulo (+ semis (syntax-e #'a)) 12) (syntax-e #'o))))])
-                 (values (cons (qq-art expr (put tone-stx)) (cons (delete-expr expr) acc))))])]
+                 (values (cons (qq-art expr (context tone-stx)) (cons (delete-expr expr) acc))))])]
            [_ acc]))
      #'(@ () result ...)]))
 
@@ -61,7 +75,7 @@
                 (match (syntax-e #'p)
                   ['c 0] ['d 2] ['e 4] ['f 5] ['g 7] ['a 9] ['b 11]))
               (with-syntax ([midi-stx (quasisyntax/loc expr (midi #,(+ 61 semis (syntax-e #'a) (* 12 (- (syntax-e #'o) 4)))))])
-                (values (cons (qq-art expr (put midi-stx)) acc1) (cons (delete-expr expr) acc2)))]
+                (values (cons (qq-art expr midi-stx) acc1) (cons (delete-expr expr) acc2)))]
              [_ (values acc1 acc2)])))
          (append deletes exprs))
      #'(@ () result ...)]))
@@ -81,14 +95,15 @@
          (define-values (exprs deletes)
            (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
                      ([expr (current-ctxt)])
+             (println expr)
              (syntax-parse expr
                [({~literal ^} ix:number)
-                (syntax-parse (context-ref/surrounding (current-ctxt) (get-id-ctxt expr) #'key)
-                  [({~literal key} pitch:id accidental:number mode:id)
-                   (define octave 
-                     (syntax-parse (context-ref/surrounding (current-ctxt) (get-id-ctxt expr) #'octave)
-                       [(octave o:number) (syntax-e #'o)]))
-
+                (define key (require-context (current-ctxt) expr #'key))
+                (define octave- (require-context (current-ctxt) expr #'octave)) 
+                (syntax-parse #`(#,key #,octave-)
+                  [(({~literal key} pitch:id accidental:number mode:id) ({~literal octave} oct:number))
+                   (define octave (syntax-e #'oct))
+                   (println octave)
                    (define scale (generate-scale (syntax->datum #'pitch) (syntax->datum #'accidental) (syntax->datum #'mode)))
                    (define ix* (sub1 (syntax-e #'ix)))
                    (match-define (list p a) (list-ref scale (modulo ix* 7)))
@@ -96,7 +111,7 @@
                    (define c (index-where scale (λ (x) (eq? (car x) 'c))))
                    (define o (+ octave (floor (/ (- ix* c) 7))))
 
-                   (values (cons (qq-art expr (put (note #,p #,a #,o))) acc1) (cons (delete-expr expr) acc2))])]
+                   (values (cons (qq-art expr (note #,p #,a #,o)) acc1) (cons (delete-expr expr) acc2))])]
                [_ (values acc1 acc2)])))
          (append deletes exprs))
      #'(@ () result ...)]))
@@ -114,7 +129,7 @@
                      ([expr (filter (λ (e) (context-within? (get-id-ctxt e) (get-id-ctxt expr) (current-ctxt))) (current-ctxt))])
              (syntax-parse expr
                [({~literal ^} ix:number)
-                (values (cons (qq-art expr (put (^ #,(+ (syntax-e #'val) (syntax-e #'ix))))) acc1) (cons (delete-expr expr) acc2))]
+                (values (cons (qq-art expr (context (^ #,(+ (syntax-e #'val) (syntax-e #'ix))))) acc1) (cons (delete-expr expr) acc2))]
                [_ (values acc1 acc2)])))
          (append deletes exprs))
      #'(@ () result ...)])))
@@ -285,6 +300,8 @@
                             [o (if (>= (distance-above-c (first pc)) cdis) octave (add1 octave))])
                 (qq-art crd (note p a o))))
           #'(@ () result ...)])])))
+ 
+(realize (quote-realizer) (seq (chords (a 0 M))) (rhythm 2) (apply-rhythm) #;(chord->notes/simple 4))
 
 (define-art-object (voiced-chord [pitch accidental mode notes ...]))
 
@@ -352,7 +369,6 @@
       [(_ voice-ix:number)
        (syntax-parse ch
         [(_ p a mods voice ...)
-
          #:do [
            (define the-note-sequences
              (filter (λ (x) (println x) (syntax-parse x [(_ ({~literal note} _ ...) ...) #t] [_ #f]))
@@ -367,7 +383,7 @@
              (list-ref the-note-sequence 
                (syntax-parse (context-ref (get-id-ctxt ch) #'index)
                  [(_ ix:number) (syntax-e #'ix)])))
-         (qq-art ch (voiced-chord p a mods voice* ...))])])))
+         (qq-art ch (context #,(delete-expr (car the-note-sequences)) (voiced-chord p a mods voice* ...)))])])))
 
 (define-mapping-rewriter (fill-harmony [(: ch voiced-chord)])
   (λ (stx ch)
@@ -382,7 +398,7 @@
             (define the-note-sequences
               (filter (λ (x) (println x) (syntax-parse x [(_ ({~literal note} _ ...) ...) #t] [_ #f]))
                       (context-ref*/surrounding (current-ctxt) (get-id-ctxt ch) #'seq)))
-            (when (null? the-note-sequences) (raise-syntax-error 'fill-voice "oops" ch))]
+            (when (null? the-note-sequences) (raise-syntax-error 'fill-harmony "oops" ch))]
           #:with (_ (_ p* a* o*) ...) (car the-note-sequences)
-          (qq-art ch (voiced-chord p a mods (p* a* o*) ...))])]
+          (qq-art ch (context #,(delete-expr (car the-note-sequences)) (voiced-chord p a mods (p* a* o*) ...)))])]
       [_ ch])))

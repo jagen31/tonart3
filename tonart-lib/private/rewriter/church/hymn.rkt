@@ -1,9 +1,9 @@
 #lang racket
 
-(require art art/sequence/lib art/timeline/lib
-         "../stdlib.rkt" "../common-practice/lib.rkt" (for-syntax syntax/parse))
+(require art art/sequence art/timeline
+         tonart/private/rewriter/lib tonart/private/rewriter/common-practice/lib 
+         (for-syntax syntax/parse))
 (provide (all-defined-out))
-
 
 (define-art-rewriter scale-degree-seq
   (λ (stx)
@@ -15,17 +15,20 @@
 
 (define-mapping-rewriter (st-flavian->rhythm [(: melodies st-flavian)])
   (λ (stx melody)
-    (qq-art melody
-      (pocket-rewrite
+    (println (current-ctxt))
+    (rewrite1
+      (qq-art melody
         (rhythm 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3)))))
 
 (define-mapping-rewriter (st-flavian->^s [(: melodies st-flavian)])
   (λ (stx melody)
-    (qq-art melody
-      (pocket-rewrite
-        (scale-degree-seq 1 1 0 1 3 2 2 1 1 4 3 1 2 3 3 3 4 5 3 1 2 3 3 2 1 1 0 1)
-        (st-flavian->rhythm)
-        (apply-rhythm)))))
+    (rewrite1
+      (qq-art melody
+        (@ ()
+          (scale-degree-seq 1 1 0 1 3 2 2 1 1 4 3 1 2 3 3 3 4 5 3 1 2 3 3 2 1 1 0 1)
+          (st-flavian)
+          (st-flavian->rhythm)
+          (apply-rhythm))))))
 
 (define-art-object (stuttgart []))
 
@@ -65,12 +68,13 @@
 
 (define-mapping-rewriter (hyfrydol->rhythm [(: melody hyfrydol)])
   (λ(stx melody)
-    (qq-art melody
-      (pocket-rewrite
-        (-- 0 [48 (loop 24 (hyf-phrase1))]
-              [18 (loop 6 (hyf-motif1))] [6 (rhythm 1 1 1 3)]
-              [12 (rhythm 1 1 1 1 1 1 1 1 1 0.5 0.5 0.5 0.5 1)] [6 (hyf-motif1)] [6 (rhythm 1.5 0.5 1 1)])
-        (i@ [0 96] (expand-loop) (x-hyf-motif1) (x-hyf-motif1) #;(coalesce rhythm))))))
+    (rewrite1
+      (qq-art melody
+        (context
+          (-- 0 [48 (loop 24 (hyf-phrase1))]
+                [18 (loop 6 (hyf-motif1))] [6 (rhythm 1 1 1 3)]
+                [12 (rhythm 1 1 1 1 1 1 1 1 1 0.5 0.5 0.5 0.5 1)] [6 (hyf-motif1)] [6 (rhythm 1.5 0.5 1 1)])
+          (i@ [0 96] (expand-loop) (x-hyf-motif1) (x-hyf-motif1) #;(coalesce rhythm)))))))
 
 (define-mapping-rewriter (hyfrydol->notes [(: melody hyfrydol)])
   (λ(stx melody)

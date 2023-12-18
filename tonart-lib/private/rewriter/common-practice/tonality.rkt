@@ -1,7 +1,7 @@
 #lang racket
 
 (require (prefix-in coll: data/collection))
-(provide (all-defined-out))
+(provide (except-out (all-defined-out) line circle))
 
 (module+ test (require rackunit))
 

@@ -1,10 +1,8 @@
 #lang at-exp racket
 
-(require art
-         "../../../rewriter/stdlib.rkt" 
-         "../../../rewriter/common-practice/lib.rkt" 
-         racket/runtime-path
-  (for-syntax syntax/id-set syntax/id-table (only-in ee-lib compiled-from) syntax/parse racket/match racket/list racket/string racket/format racket/dict) rsound rsound/envelope sf2-parser)
+(require art tonart/private/rewriter/lib tonart/private/rewriter/common-practice/lib
+  (for-syntax syntax/id-set syntax/id-table (only-in ee-lib compiled-from) 
+              syntax/parse racket/match racket/list racket/string racket/format racket/dict))
 (provide (all-defined-out))
 
 (begin-for-syntax
@@ -109,7 +107,7 @@
     </score-partwise>
     }))
 
-(define-art-realizer musicxml-performer
+(define-art-realizer musicxml-realizer
   (syntax-parser
     [(_ ctxt ...)
      #`#,(compile (syntax->list #'(ctxt ...)))]))
