@@ -267,8 +267,6 @@
   (generate-next-voice-leading '(f 0 (major)) '(#f #f #f (f 0 3)) '((c 0 5) (g 0 4) (e 0 4) (c 0 3))))
 
 (define (generate-voice-leading chords hints)
-  (println chords)
-  (println hints)
   (define fst (car hints))
   (unless (andmap (λ(x) x) fst) (error 'generate-voice-leading "requires a starting chord"))
   (for/fold ([acc (list fst)] #:result (reverse acc))

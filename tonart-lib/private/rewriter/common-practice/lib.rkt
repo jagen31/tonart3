@@ -12,6 +12,7 @@
 ;;;;;;;;;; notes!  considered fairly fundamental...
 (define-art-object (note [pitch accidental octave]))
 (define-art-object (tuning [type]))
+(define-art-object (music-rest []))
 
 (define-art-rewriter notes
   (λ (stx)
@@ -95,15 +96,13 @@
          (define-values (exprs deletes)
            (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
                      ([expr (current-ctxt)])
-             (println expr)
              (syntax-parse expr
                [({~literal ^} ix:number)
                 (define key (require-context (current-ctxt) expr #'key))
                 (define octave- (require-context (current-ctxt) expr #'octave)) 
                 (syntax-parse #`(#,key #,octave-)
-                  [(({~literal key} pitch:id accidental:number mode:id) ({~literal octave} oct:number))
+                  [(({~literal key} /timepitch:id accidental:number mode:id) ({~literal octave} oct:number))
                    (define octave (syntax-e #'oct))
-                   (println octave)
                    (define scale (generate-scale (syntax->datum #'pitch) (syntax->datum #'accidental) (syntax->datum #'mode)))
                    (define ix* (sub1 (syntax-e #'ix)))
                    (match-define (list p a) (list-ref scale (modulo ix* 7)))
@@ -339,8 +338,7 @@
                 [({~literal voiced-chord} cp ca [cm ...] _ ...)
                  (syntax->datum #'(cp ca [cm ...]))])))
 
-          (define result (generate-voice-leading chords* hints))
-          (println result) ]
+          (define result (generate-voice-leading chords* hints))]
           #:with (result* ...)
             (flatten
               (for/list ([old-chord chords] [chord chords*] [notes result]) 
@@ -371,7 +369,7 @@
         [(_ p a mods voice ...)
          #:do [
            (define the-note-sequences
-             (filter (λ (x) (println x) (syntax-parse x [(_ ({~literal note} _ ...) ...) #t] [_ #f]))
+             (filter (λ (x) (syntax-parse x [(_ ({~literal note} _ ...) ...) #t] [_ #f]))
                      (context-ref*/surrounding (current-ctxt) (get-id-ctxt ch) #'seq)))
            (when (null? the-note-sequences) (raise-syntax-error 'fill-voice "oops" ch))
            (define the-note-sequence 
@@ -396,7 +394,7 @@
          [(_ p a mods _ ...)
           #:do [
             (define the-note-sequences
-              (filter (λ (x) (println x) (syntax-parse x [(_ ({~literal note} _ ...) ...) #t] [_ #f]))
+              (filter (λ (x) (syntax-parse x [(_ ({~literal note} _ ...) ...) #t] [_ #f]))
                       (context-ref*/surrounding (current-ctxt) (get-id-ctxt ch) #'seq)))
             (when (null? the-note-sequences) (raise-syntax-error 'fill-harmony "oops" ch))]
           #:with (_ (_ p* a* o*) ...) (car the-note-sequences)

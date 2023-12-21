@@ -12,7 +12,6 @@
 
 (define (start-loop)
   (thread (λ ()
-    (println "starting loop...")
     (let loop ()
       #;(set-output-device! (unbox the-device))
       (with-handlers ([(λ(x) #t) (λ(x) (print x))]) (play (unbox the-sound)))
@@ -25,7 +24,7 @@
 
 (define-for-syntax (get-recompile-expr)
   (if (needs-recompile)
-      #`(begin (println "recompiling!") (set-box! the-sound (realize music-rsound-realizer #,@(gvector->list the-exprs))))
+      #`(begin (set-box! the-sound (realize music-rsound-realizer #,@(gvector->list the-exprs))))
       #`(void)))
 
 (define-syntax (#%top-interaction stx)
@@ -71,7 +70,6 @@
      #'(void)]
     [(_ . ({~literal show-compiled} expr ...))
     #:with (result ...) (append (gvector->list the-exprs) (syntax->list #'(expr ...)))
-    (println #'(result ...))
      #`(realize quote-realizer result ...)]
     [(_ . ({~literal racket} expr))
      #'expr]))

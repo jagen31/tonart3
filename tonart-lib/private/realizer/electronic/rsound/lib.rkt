@@ -48,7 +48,6 @@
   (λ(ctxt)
     (for/foldr ([acc '()])
                ([stx ctxt])
-      (println stx)
       (syntax-parse stx
         [({~literal tone} freq) 
 
@@ -75,7 +74,6 @@
     (println "running midi subrealizer")
     (for/foldr ([acc '()])
                ([stx ctxt])
-      (println stx)
       (syntax-parse stx
         [({~literal midi} num:number) 
          (define iv (context-ref (get-id-ctxt stx) #'interval))

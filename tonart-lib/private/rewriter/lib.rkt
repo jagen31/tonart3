@@ -1,9 +1,9 @@
 #lang racket
 
-(require art art/timeline art/sequence
+(require art art/timeline art/sequence art/coordinate/subset
          (for-syntax syntax/parse racket/list racket/match
                      tonart/liszt))
-(provide (all-defined-out))
+(provide (all-defined-out) (for-syntax (all-defined-out)))
 
 ;; define-coordinate interval (copy-coordinate std:interval) or something
 ;; define-coordinate voice (copy-coordinate std:subset) or something
@@ -54,6 +54,10 @@
                  [else expr]))])))
     #`(@ () #,@(map delete-expr tempos) #,@(map delete-expr rest-ctxt) (context #,@new-ctxt))))
 
+(define-subset-coordinate voice voice@)
+
+(realize (quote-realizer) (voice@ (test) (number 123)))
+
 (define-art-embedding (music [items])
   (λ (stx ctxt)
     (syntax-parse stx
@@ -85,7 +89,6 @@
   (λ (stx s)
     (define init-start (expr-interval-start s))
     (define init-end (expr-interval-end s))
-    (println "HEREHEREHER")
     (syntax-parse s 
       [(_ expr ...)
         #:do [(define sorted (sort (syntax->list #'(expr ...)) < #:key expr-index))]

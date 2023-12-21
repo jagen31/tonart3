@@ -15,7 +15,6 @@
 
 (define-mapping-rewriter (st-flavian->rhythm [(: melodies st-flavian)])
   (λ (stx melody)
-    (println (current-ctxt))
     (rewrite1
       (qq-art melody
         (rhythm 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3)))))

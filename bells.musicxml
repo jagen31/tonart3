@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
 <score-partwise version="4.0">
-  <work>
-    <work-title>Untitled score</work-title>
-    </work>
   <identification>
-    <creator type="composer">Composer / arranger</creator>
     <encoding>
       <software>MuseScore 4.1.1</software>
-      <encoding-date>2023-12-17</encoding-date>
+      <encoding-date>2023-12-19</encoding-date>
       <supports element="accidental" type="yes"/>
       <supports element="beam" type="yes"/>
       <supports element="print" attribute="new-page" type="no"/>
@@ -18,16 +14,15 @@
     </identification>
   <part-list>
     <score-part id="P1">
-      <part-name>Flute</part-name>
-      <part-abbreviation>Fl.</part-abbreviation>
+      <part-name>melody</part-name>
       <score-instrument id="P1-I1">
-        <instrument-name>Flute</instrument-name>
-        <instrument-sound>wind.flutes.flute</instrument-sound>
+        <instrument-name></instrument-name>
+        <instrument-sound>keyboard.piano.grand</instrument-sound>
         </score-instrument>
       <midi-device id="P1-I1" port="1"></midi-device>
       <midi-instrument id="P1-I1">
         <midi-channel>1</midi-channel>
-        <midi-program>74</midi-program>
+        <midi-program>1</midi-program>
         <volume>78.7402</volume>
         <pan>0</pan>
         </midi-instrument>
@@ -75,9 +70,13 @@
           <octave>4</octave>
           </pitch>
         <duration>4</duration>
+        <tie type="start"/>
         <voice>1</voice>
         <type>half</type>
         <stem>down</stem>
+        <notations>
+          <tied type="start"/>
+          </notations>
         </note>
       </measure>
     <measure number="2">
@@ -87,9 +86,15 @@
           <octave>4</octave>
           </pitch>
         <duration>2</duration>
+        <tie type="stop"/>
+        <tie type="start"/>
         <voice>1</voice>
         <type>quarter</type>
         <stem>down</stem>
+        <notations>
+          <tied type="stop"/>
+          <tied type="start"/>
+          </notations>
         </note>
       <note>
         <pitch>
@@ -97,9 +102,15 @@
           <octave>4</octave>
           </pitch>
         <duration>2</duration>
+        <tie type="stop"/>
+        <tie type="start"/>
         <voice>1</voice>
         <type>quarter</type>
         <stem>down</stem>
+        <notations>
+          <tied type="stop"/>
+          <tied type="start"/>
+          </notations>
         </note>
       <note>
         <pitch>
@@ -107,9 +118,15 @@
           <octave>4</octave>
           </pitch>
         <duration>4</duration>
+        <tie type="stop"/>
+        <tie type="start"/>
         <voice>1</voice>
         <type>half</type>
         <stem>down</stem>
+        <notations>
+          <tied type="stop"/>
+          <tied type="start"/>
+          </notations>
         </note>
       </measure>
     <measure number="3">
@@ -119,9 +136,13 @@
           <octave>4</octave>
           </pitch>
         <duration>2</duration>
+        <tie type="stop"/>
         <voice>1</voice>
         <type>quarter</type>
         <stem>down</stem>
+        <notations>
+          <tied type="stop"/>
+          </notations>
         </note>
       <note>
         <pitch>
@@ -142,7 +163,7 @@
         <voice>1</voice>
         <type>quarter</type>
         <dot/>
-        <stem>up</stem>
+        <stem>down</stem>
         </note>
       <note>
         <pitch>
@@ -152,7 +173,7 @@
         <duration>1</duration>
         <voice>1</voice>
         <type>eighth</type>
-        <stem>up</stem>
+        <stem>down</stem>
         </note>
       </measure>
     <measure number="4">
@@ -282,7 +303,7 @@
         <duration>2</duration>
         <voice>1</voice>
         <type>quarter</type>
-        <stem>up</stem>
+        <stem>down</stem>
         </note>
       <note>
         <pitch>
@@ -292,7 +313,7 @@
         <duration>2</duration>
         <voice>1</voice>
         <type>quarter</type>
-        <stem>up</stem>
+        <stem>down</stem>
         </note>
       <note>
         <pitch>
@@ -315,7 +336,7 @@
         <duration>4</duration>
         <voice>1</voice>
         <type>half</type>
-        <stem>up</stem>
+        <stem>down</stem>
         </note>
       <note>
         <pitch>
@@ -327,9 +348,6 @@
         <type>half</type>
         <stem>down</stem>
         </note>
-      <barline location="right">
-        <bar-style>light-heavy</bar-style>
-        </barline>
       </measure>
     </part>
   </score-partwise>
