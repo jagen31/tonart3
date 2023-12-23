@@ -84,6 +84,13 @@
 
 (define-art-object (key [pitch accidental mode]))
 (define-art-object (^ [degree]))
+
+(define-art-rewriter ^s 
+  (λ (stx)
+    (syntax-parse stx
+      [(_ degree:number ...)
+       (qq-art stx (ix-- (^ degree) ...))])))
+
 (define-art-object (octave [o]))
 
 (define-art-object (pitch [p a]))
@@ -101,7 +108,7 @@
                 (define key (require-context (current-ctxt) expr #'key))
                 (define octave- (require-context (current-ctxt) expr #'octave)) 
                 (syntax-parse #`(#,key #,octave-)
-                  [(({~literal key} /timepitch:id accidental:number mode:id) ({~literal octave} oct:number))
+                  [(({~literal key} pitch:id accidental:number mode:id) ({~literal octave} oct:number))
                    (define octave (syntax-e #'oct))
                    (define scale (generate-scale (syntax->datum #'pitch) (syntax->datum #'accidental) (syntax->datum #'mode)))
                    (define ix* (sub1 (syntax-e #'ix)))
@@ -157,7 +164,7 @@
       [(_ [(measure:number beat:number) (voice:id ...)] expr ...) 
        (qq-art stx (music@ [(measure beat) (+inf.0 +inf.0) (voice ...)] expr ...))]
       [(_ [(mstart:number bstart:number) (mend:number bend:number) (voice:id ...)] expr ...)
-       (qq-art stx (mi@ [(mstart bstart) (mend bend)] (ss@ (voice ...) expr ...)))])))
+       (qq-art stx (mi@ [(mstart bstart) (mend bend)] (voice@ (voice ...) expr ...)))])))
 
 (define-for-syntax (do-metric-interval->interval stx ctxt)
   (syntax-parse stx 

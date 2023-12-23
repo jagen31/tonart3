@@ -1,7 +1,7 @@
 #lang at-exp racket
 
-(require art art/sequence art/timeline tonart/private/rewriter/lib tonart/common-practice xml 2htdp/image 2htdp/universe (prefix-in cute: 2htdp/planetcute)
-  (for-syntax racket/string syntax/parse racket/list racket/match racket/dict racket/set syntax/to-string fmt
+(require art art/sequence art/timeline art/sequence/ravel tonart/private/rewriter/lib tonart/common-practice tonart/rsound xml 2htdp/image 2htdp/universe (prefix-in cute: 2htdp/planetcute)
+  (for-syntax racket/string syntax/parse racket/list racket/match racket/dict racket/set syntax/to-string fmt racket/math
               (except-in xml attribute) "mxml.rkt" syntax/id-table syntax/id-set))
   
 (define-coordinate (duration [d]))
@@ -109,14 +109,16 @@
 
 (define-mapping-rewriter (note->mxml-note [(: n note)])
   (λ (stx n)
+    (println "here")
     (syntax-parse n
       [(_ p a o)
        #:with (_ _ denom) (require-context (current-ctxt) n #'time-sig)
        #:do [
+        (println "interval")
         (define the-dur- (- (expr-interval-end n) (expr-interval-start n)))
         (define the-dur (/ the-dur- (syntax-e #'denom)))]
        #:with (dur dot ...)
-         (match the-dur
+         (match (inexact->exact the-dur)
            [1/16 #'(sixteenth)]
            [1/8 #'(eighth)] [3/16 #'(eighth dot)]
            [1/4 #'(quarter)] [3/8 #'(quarter dot)]
@@ -133,7 +135,7 @@
         (define the-dur- (- (expr-interval-end r) (expr-interval-start r)))
         (define the-dur (/ the-dur- (syntax-e #'denom)))]
        #:with (dur dot ...)
-         (match the-dur
+         (match (inexact->exact the-dur)
            [1/16 #'(sixteenth)]
            [1/8 #'(eighth)] [3/16 #'(eighth dot)]
            [1/4 #'(quarter)] [3/8 #'(quarter dot)]
@@ -144,14 +146,16 @@
 
 (define-mapping-rewriter (measure->mxml-measure [(: m measure)])
   (λ (stx m)
+  (println "HERE")
     (syntax-parse m
       [(_ expr ...)
        (define sig (require-context (current-ctxt) m #'time-sig))
-       (qq-art m (mxml-measure 
+       (define result(qq-art m (mxml-measure 
          (seq (ix-- 
            #,@(run-art-exprs 
             (list #'(note->mxml-note) #'(rest->mxml-rest) (delete-expr sig)) 
-            (cons sig (syntax->list #'(expr ...))))))))])))
+            (cons sig (syntax->list #'(expr ...)))))))))
+        (println "DONE") result])))
 
 (define-art-rewriter load-musicxml
   (λ (stx)
@@ -345,7 +349,7 @@
 #;(realize (quote-realizer)
  (load-musicxml "bells.musicxml" [melody]))
 
-(write-xml
+#;(write-xml
   (realize (unload-musicxml)
     (time-sig 3 4)
     (voice@ (melody)
@@ -364,12 +368,36 @@
   (λ (stx)
     (syntax-parse stx
       [(_ colo:id)
-       #`(text #,(program-format (string-trim (syntax->string #`(#,@(current-ctxt))))) 24 '#,(syntax-e #'colo))])))
+       #`(text #,(program-format (string-trim (syntax->string #`(#,@(current-ctxt))))) 18 '#,(syntax-e #'colo))])))
 
 #;(define-art-realizer draw-music-realizer
   )
 
-(define-art-realizer trace-rewrite-realizer
+(define (draw-arrow width color)
+   (above/align 'right (line 10 5 color) (line width 0 color) (line 10 -5 color)))
+
+(define-for-syntax (do-draw-trace exprs width height ctxt im- embed)
+  ;; we'll rewrite step by step and draw each step
+  (for/fold ([acc ctxt] [im im-]) 
+            ([e exprs])
+    (define-values (ctxt* im+)
+      (syntax-parse e
+        [(head:id expr ...)
+         #:do [(define maybe-embed (syntax-local-value #'head))]
+         #:when (embed/s? maybe-embed) 
+         (define-values (c i) 
+           (do-draw-trace (syntax->list #'(expr ...)) width height '() #'empty-image (λ (x) (list #`(head #,@(embed x))))))
+         (values c #`(above/align 'left (text #,(format "~a:" (symbol->string (syntax->datum #'head))) 20 'purple) #,i))]
+        [_
+         (define rewriter-image (realize-art-exprs #'(draw-quoted yellow) (list e)))
+         (define rewriter-image*
+           #`(above/align 'left  #,rewriter-image (rectangle 10 10 'solid 'transparent) (draw-arrow (image-width #,rewriter-image)'purple)))
+         (define rewritten (run-art-expr e acc))
+         (define rewritten-image (realize-art-exprs #'(draw-realizer [800 100]) (embed rewritten)))
+         (values rewritten #`(above/align 'left #,rewriter-image* #,rewritten-image))]))
+    (values ctxt* #`(above/align 'left #,im #,im+))))
+
+(define-art-realizer draw-trace-realizer
   (λ (stx)
     (define-values (width height) 
       (syntax-parse stx [(_ [w:number h:number]) (values (syntax-e #'w) (syntax-e #'h))]))
@@ -377,29 +405,309 @@
     #`(overlay
         #,(for/fold ([im #'empty-image])
                     ([ref refs])
-          #`(above/align 'left #,im 
-            #,(syntax-parse ref
-               [(_ expr ...)
-                ;; we'll rewrite step by step and draw each step
-                (for/fold ([acc '()] [im #'empty-image] #:result im) 
-                          ([e (syntax->list #'(expr ...))])
-                  (define rewriter-image 
-                    #`(underlay (triangle 10 'solid 'blue) #,(realize-art-exprs #'(draw-quoted blue) (list e))))
-                  (define rewritten (run-art-expr e acc))
-                  (define rewritten-image (realize-art-exprs #'(draw-quoted red) rewritten))
-                  (values rewritten #`(above/align 'left #,im #,rewriter-image #,rewritten-image)))])))
+          (syntax-parse ref
+            [(_ expr ...) 
+             (define-values (ctxt im*)
+               (do-draw-trace (syntax->list #'(expr ...)) width height '() im (λ (x) x)))
+             im*]))
         (rectangle #,width #,height 'solid 'transparent))))
 
 
-  (realize (trace-rewrite-realizer [800 800])
+
+(begin-for-syntax 
+  (define recursive-drawers (make-free-id-table))
+  (struct drawer/s [body])
+  (define drawer-width (make-parameter 0))
+  (define drawer-height (make-parameter 0)))
+
+(define-syntax (define-drawer stx)
+  (syntax-parse stx
+    [(_ name:id body)
+     #'(define-syntax name (drawer/s body))]))
+
+(define-for-syntax (do-draw-seq ctxt width height)
+  (define max-ix
+    (for/fold ([acc '()])
+              ([expr ctxt])
+      (define ix (expr-index expr))
+      (if acc (max-index acc ix) ix)))
+  (when (> (length max-ix) 2) (raise-syntax-error 'draw-seq "cannot draw indexes greater than 2 yet" #f))
+
+  (define-values (each-width each-height)
+    (cond 
+      [(= (length max-ix) 2)
+       (values (floor (/ width (add1 (cadr max-ix)))) (floor (/ height (add1 (car max-ix)))))]
+      [(= (length max-ix) 1)
+       (values (floor (/ width (add1 (car max-ix)))) (floor height))]
+      [(= (length max-ix) 0)
+      (values (floor width) (floor height))]))
+
+  (define get-expr-single-index 
+    (cond 
+      [(= (length max-ix) 2) expr-index]
+      [(= (length max-ix) 1)
+       (λ (e) (list 0 (expr-single-index e)))]
+      [(= (length max-ix) 0)
+       (λ (e) (list 0 0))]))
+
+  (define result
+    (for/fold ([acc (hash)]) 
+              ([e ctxt])
+       (hash-set acc (get-expr-single-index e)
+         (syntax-parse e
+           [({~literal seq} expr ...)
+            (define sub-result (do-draw-seq (syntax->list #'(expr ...)) (- each-width 20) (- each-height 20)))
+            ;; draw a box for nested sequences, apl style
+            #`(overlay (rectangle #,each-width #,each-height 'outline 'blue) #,sub-result)]
+           [_ (drawer-recur e)]))))
+
+  (define result2 
+    (for/fold ([im #'empty-image])
+              ([(ix expr) (in-hash result)])
+      #`(overlay/xy #,im (* #,each-width #,(cadr ix)) (* #,each-height #,(car ix)) #,expr)))
+  result2)
+
+(define-drawer draw-seq
+  (λ (stx)
+    (syntax-parse stx
+      [(_ expr ...)
+       (do-draw-seq (syntax->list #'(expr ...)) (drawer-width) (drawer-height))])))
+
+(define-for-syntax (do-draw-music-voice ctxt* each-height)
+
+  (define max-end
+    (for/fold ([acc 0]) ([e ctxt*])
+      (define end (expr-interval-end e))
+      (if (infinite? end) acc (max acc end))))
+
+  (define each-width (/ (drawer-width) (add1 max-end)))
+
+  (for/fold ([im #'empty-image])
+            ([e ctxt*])
+    (match-define (cons start end) (expr-interval e))
+
+    (define end* (if (infinite? end) max-end end))
+    (define x-start (* start each-width))
+    (define x-end (* (add1 end*) each-width))
+    (define width* (- x-end x-start))
+
+    (define sub-pic 
+      (parameterize ([drawer-width width*] [drawer-height each-height]) 
+        (drawer-recur e)))
+
+    #`(overlay/offset #,sub-pic #,(- x-start) 0 #,im)))
+   
+(define-for-syntax (do-draw-music ctxt)
+  ;; FIXME jagen library fn
+
+  (define voices (voice-find-all ctxt))
+  (define each-height (/ (drawer-height) (add1 (set-count voices))))
+
+  #`(above/align 'left
+    #,@(for/list ([voice-index (in-naturals)] [v voices])
+         (define ctxt* (filter (λ (expr) (context-within? (get-id-ctxt expr) (list #`(voice #,v)) ctxt)) ctxt))
+
+         #`(beside (overlay (text #,(format "~a:" (symbol->string (syntax->datum v))) 16 'black) (rectangle 60 #,each-height 'solid 'transparent))
+             #,(do-draw-music-voice ctxt* each-height)))
+    empty-image))
+  
+
+(define-drawer draw-music 
+  (λ (stx)
+    (syntax-parse stx
+      [(_ expr ...) (do-draw-music (syntax->list #'(expr ...)))])))
+
+(define-syntax (register-drawer! stx)
+  (syntax-parse stx
+    [(_ head:id r:id) (free-id-table-set! recursive-drawers #'head #'r) #'(void)]))
+
+(define-for-syntax (drawer-recur stx)
+  (syntax-parse stx
+    [(head:id _ ...)
+     (define draw (free-id-table-ref recursive-drawers #'head (λ () #f)))
+     (if draw ((drawer/s-body (syntax-local-value draw)) stx) (realize-art-exprs #'(draw-quoted blue) (list stx)))]))
+
+(define-for-syntax (do-draw-note p a o)
+  (define p* (string-upcase (symbol->string (syntax-e p))))
+  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"]))
+  (define o* (syntax-e o))
+  #`(add-line (overlay (text #,(format "~a~a~s" p* a* o*) 12 'red) (circle 9 'outline 'black) (circle 8 'solid 'blue)) 18 9 18 -20 'black))
+
+(define-drawer draw-note
+  (λ (stx)
+    (syntax-parse stx
+      [({~datum note} p a o) (do-draw-note #'p #'a #'o)])))
+
+(define-drawer draw-mxml-note
+  (λ (stx)
+    (syntax-parse stx
+      [(_ p a o _ ...)
+       (define drawn (do-draw-note #'p #'a #'o))
+       #`(overlay/align 'left 'top (text "< / >" 12 'black) #,drawn)])))
+
+(define-drawer draw-mxml-rest
+  (λ (stx)
+    (syntax-parse stx
+      [({~literal mxml-rest} _) #`(overlay (above (rectangle 10 5 'solid 'black) (line 14 0 'black))
+                                           (rectangle 40 50 'solid 'transparent))])))
+
+(define-for-syntax (measure-spacer)
+  #'(overlay (line 0 40 'black) (rectangle 10 40 'solid 'transparent)))
+
+(define-drawer draw-measure
+  (λ (stx)
+    (syntax-parse stx
+      [(_ expr ...)
+       (define d (do-draw-music-voice (syntax->list #'(expr ...)) (drawer-height)))
+       #`(beside #,(measure-spacer) #,d #,(measure-spacer))])))
+
+(define-drawer draw-mxml-measure
+  (λ (stx)
+    (syntax-parse stx
+      [(_ expr ...)
+       (define d (do-draw-music-voice (syntax->list #'(expr ...)) (drawer-height)))
+       #`(beside #,(measure-spacer) #,d #,(measure-spacer))])))
+
+(define-art-realizer draw-realizer 
+  (λ (stx) 
+    (syntax-parse stx
+      [(_ [width:number height:number])
+       #`(above
+         #,@(for/list ([e (current-ctxt)]) 
+              (parameterize ([drawer-width (syntax-e #'width)] 
+                             [drawer-height (syntax-e #'height)]) 
+                (drawer-recur e)))
+         empty-image)])))
+
+(register-drawer! note draw-note)
+(register-drawer! mxml-rest draw-mxml-rest)
+(register-drawer! mxml-note draw-mxml-note)
+(register-drawer! music draw-music)
+(register-drawer! seq draw-seq)
+(register-drawer! measure draw-measure)
+(register-drawer! mxml-measure draw-mxml-measure)
+
+#;(realize (draw-realizer [800 100]) 
+  (music (voice@ (melody) 
+           (-- [2 (note a 0 4)] [1 (note b 0 4)] [0.5 (note c 1 5)] [0.5 (note d 0 5)] [1 (note d -1 5)]))
+         (voice@ (accomp) 
+           (-- [1 (note a 0 3)] [2 (note e 0 3)] [1 (note a 0 3)] [1 (note f 1 3)] [1 (note a 1 3)]))
+         (time-sig 4 4)
+         (note->mxml-note)))
+
+
+(define-interpretation rudolph)
+(interpretation+ rudolph
+  [rudolph-the-red (context (rhythm 0.5 1 0.5 1 1 1 3) (seq (^s 5 6 5 3 8 6 5)))]
+  [had-a-very-shiny (context (rhythm 0.5 0.5 0.5 0.5 1 1 4) (seq (^s 5 6 5 6 5 8 7)))]
+  [and-if-you-ever (context (rhythm 0.5 1 0.5 1 1 1 3) (seq (^s 4 5 4 2 7 6 5)))]
+  [you-would-even (context (rhythm 0.5 0.5 0.5 0.5 1 1 3) (seq (^s 5 6 5 6 5 6 3)))])
+
+(rs-write
+ (realize (music-rsound-realizer)
+  (voice@ (melody) (-- [8 (rudolph-the-red)] [8 (had-a-very-shiny)] [8 (and-if-you-ever)] [8 (you-would-even)]))
+
+  (interpret rudolph)
+  (apply-rhythm)
+
+  (voice@ (accomp)
+    (-- [12 (loop 4 (seq (^s 1 5 -2 5)))] [16 (loop 4 (seq (^s 2 5 -2 5)))] [4 (seq (^s 1 5 -2 5))]))
+  (voice@ (accomp) (i@ [0 32] (loop 4 (uniform-rhythm 1))))
+  (expand-loop)
+  (apply-rhythm)
+
+  (key b -1 major)
+  (voice@ (melody) (octave 4))
+  (voice@ (accomp) (octave 3))
+  (^->note)
+    
+  (tempo 120)
+  (apply-tempo)
+    
+  (voice@ (melody) (instrument Clarinet))
+  (voice@ (accomp) (instrument |Yamaha Grand Piano|))
+  (note->midi))
+ "rudolph.wav")
+
+  (realize (draw-trace-realizer [1200 800])
     (reflected
-      (time-sig 3 4)
-      (voice@ (melody)
-        (-- [1 (note a 0 4)] [1 (note b 0 4)] [1 (note c 1 5)] [2 (note d 0 5)]
-            [1 (note f 1 4)] [1 (note g 1 4)] [1 (note a 1 5)]))
-      (voice@ (bass)
-        (-- [4 (note f 1 3)] [2 (note b 0 3)] [2 (note c 1 4)] [1 (note f 1 3)]))
-      (enclose-in-measures [note])
-      (rewrite-in-seq 
-        (insert-rests)
-        (measure->mxml-measure) #:capture [time-sig])))
+      (music
+       (voice@ (melody) (-- [8 (rudolph-the-red)] [8 (had-a-very-shiny)] [8 (and-if-you-ever)] [8 (you-would-even)]))
+
+    (interpret rudolph)
+    (apply-rhythm)
+
+    (voice@ (accomp)
+      (-- [12 (loop 4 (seq (^s 1 5 -2 5)))] [16 (loop 4 (seq (^s 2 5 -2 5)))] [4 (seq (^s 1 5 -2 5))]))
+    (voice@ (accomp) (i@ [0 32] (loop 4 (uniform-rhythm 1))))
+    (expand-loop)
+    (apply-rhythm)
+
+    (key b -1 major)
+    (voice@ (melody) (octave 4))
+    (voice@ (accomp) (octave 3))
+    (^->note)
+
+       
+    (time-sig 4 4)
+    (enclose-in-measures [note])
+    (rewrite-in-seq 
+     (insert-rests)
+     (measure->mxml-measure) #:capture [time-sig]))))
+
+(write-xml
+  (realize (unload-musicxml)
+    (voice@ (melody) (-- [8 (rudolph-the-red)] [8 (had-a-very-shiny)] [8 (and-if-you-ever)] [8 (you-would-even)]))
+
+    (interpret rudolph)
+    (apply-rhythm)
+
+    (voice@ (accomp)
+      (-- [12 (loop 4 (seq (^s 1 5 -2 5)))] [16 (loop 4 (seq (^s 2 5 -2 5)))] [4 (seq (^s 1 5 -2 5))]))
+    (voice@ (accomp) (i@ [0 32] (loop 4 (uniform-rhythm 1))))
+    (expand-loop)
+    (apply-rhythm)
+
+    (key b -1 major)
+    (voice@ (melody) (octave 4))
+    (voice@ (accomp) (octave 3))
+    (^->note)
+
+       
+    (time-sig 4 4)
+    (enclose-in-measures [note])
+    (rewrite-in-seq 
+     (insert-rests)
+     (measure->mxml-measure) #:capture [time-sig]))
+  (open-output-file "rudolph.musicxml" #:exists 'replace))
+
+
+
+(realize (draw-trace-realizer [1200 800])
+  (reflected
+   (music
+    (voice@ (melody) (-- [8 (rudolph-the-red)] [8 (had-a-very-shiny)] [8 (and-if-you-ever)] [8 (you-would-even)]))
+
+    (interpret rudolph)
+    (apply-rhythm)
+
+    (voice@ (accomp)
+      (-- [12 (loop 4 (seq (^s 1 5 -2 5)))] [16 (loop 4 (seq (^s 2 5 -2 5)))] [4 (seq (^s 1 5 -2 5))]))
+    (voice@ (accomp) (i@ [0 32] (loop 4 (uniform-rhythm 1))))
+    (expand-loop)
+    (apply-rhythm)
+
+    (key b -1 major)
+    (voice@ (melody) (octave 4))
+    (voice@ (accomp) (octave 3))
+    (^->note)
+    
+    (tempo 120)
+    (apply-tempo)
+    
+    (voice@ (melody) (instrument Clarinet))
+    (voice@ (accomp) (instrument |Yamaha Grand Piano|))
+    (note->midi))))
+
+#;(realize (draw-realizer [800 800])
+  (seq (ix-- (note a 0 4) (note b 0 4))))

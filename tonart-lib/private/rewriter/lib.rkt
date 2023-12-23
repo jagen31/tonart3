@@ -91,7 +91,7 @@
     (define init-end (expr-interval-end s))
     (syntax-parse s 
       [(_ expr ...)
-        #:do [(define sorted (sort (syntax->list #'(expr ...)) < #:key expr-index))]
+        #:do [(define sorted (sort (syntax->list #'(expr ...)) < #:key expr-single-index))]
         #:with (result ...) 
           (for/list ([e sorted]) 
             (syntax-parse e

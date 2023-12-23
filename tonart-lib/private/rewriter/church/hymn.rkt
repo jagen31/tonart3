@@ -5,12 +5,6 @@
          (for-syntax syntax/parse))
 (provide (all-defined-out))
 
-(define-art-rewriter scale-degree-seq
-  (λ (stx)
-    (syntax-parse stx
-      [(_ degree:number ...)
-       (qq-art stx (seq (^ degree) ...))])))
-
 (define-art-object (st-flavian []))
 
 (define-mapping-rewriter (st-flavian->rhythm [(: melodies st-flavian)])
