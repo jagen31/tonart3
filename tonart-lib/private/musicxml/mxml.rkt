@@ -1,6 +1,6 @@
-#lang racket
+#lang at-exp racket
 
-(require (except-in xml attribute) xml/path syntax/parse (for-syntax syntax/parse))
+(require (for-meta -1 (except-in art number)) (except-in xml attribute) xml/path syntax/parse racket/string (for-syntax syntax/parse))
 
 (provide (all-defined-out))
 

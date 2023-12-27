@@ -1,12 +1,12 @@
 #lang racket
 
-(require art art/timeline tonart/private/rewriter/lib tonart/private/realizer/electronic/lib 
+(require art art/timeline tonart/private/lib tonart/private/electronic/lib 
   racket/runtime-path rsound rsound/envelope sf2-parser
   (for-syntax syntax/parse racket/match racket/list racket/string racket/dict) )
 (provide (all-defined-out))
 
 ;; load fluid by default
-(define-runtime-path soundfont-path "../resources/sf2")
+(define-runtime-path soundfont-path "../../resources/sf2")
 (define fluid
   (parse-soundfont
    (open-input-file

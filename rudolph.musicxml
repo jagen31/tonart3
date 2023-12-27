@@ -1,0 +1,1081 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+<part-list>
+  <score-part id="accomp">
+  <part-name>accomp</part-name>
+</score-part>
+<score-part id="melody">
+  <part-name>melody</part-name>
+</score-part>
+</part-list>
+<part id="accomp">
+  <measure number="1">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>B</step>
+    <alter>-1</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="2">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>B</step>
+    <alter>-1</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="3">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>B</step>
+    <alter>-1</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="4">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>C</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="5">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>C</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="6">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>C</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="7">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>C</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="8">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>B</step>
+    <alter>-1</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>2</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>3</octave>
+    </pitch>
+  <duration>1</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+</part>
+<part id="melody">
+  <measure number="1">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>G</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>D</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>B</step>
+    <alter>-1</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="2">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>G</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>3.0</duration>
+  
+  <voice>1</voice>
+  <type>half</type>
+  <dot></dot>
+
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="3">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>G</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>G</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>B</step>
+    <alter>-1</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="4">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>A</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>4.0</duration>
+  
+  <voice>1</voice>
+  <type>whole</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="5">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>E</step>
+    <alter>-1</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>E</step>
+    <alter>-1</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>C</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>A</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="6">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>G</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>3.0</duration>
+  
+  <voice>1</voice>
+  <type>half</type>
+  <dot></dot>
+
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="7">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>G</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>G</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>0.5</duration>
+  
+  <voice>1</voice>
+  <type>eighth</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>F</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <pitch>
+    <step>G</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>1.0</duration>
+  
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+</measure>
+<measure number="8">
+<attributes>
+
+
+  </attributes>
+<note>
+  <pitch>
+    <step>D</step>
+    <alter>0</alter>
+    <octave>4</octave>
+    </pitch>
+  <duration>3.0</duration>
+  
+  <voice>1</voice>
+  <type>half</type>
+  <dot></dot>
+
+  <stem>down</stem>
+  <notations>
+    
+  </notations>
+  </note>
+<note>
+  <rest></rest>
+  <duration>1.0</duration>
+  <voice>1</voice>
+  <type>quarter</type>
+  
+  </note>
+</measure>
+</part>
+</score-partwise>

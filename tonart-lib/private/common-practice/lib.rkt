@@ -1,10 +1,12 @@
 #lang racket
 
 (require art art/sequence art/timeline
-         tonart/private/realizer/electronic/lib
-         tonart/private/rewriter/common-practice/coordinate/metric-interval
+         tonart/private/lib
+         tonart/private/electronic/lib
+         tonart/private/common-practice/coordinate/metric-interval
          2htdp/image
-         (for-syntax syntax/parse racket/match racket/list tonart/liszt 2htdp/image))
+         (for-syntax syntax/parse racket/match racket/list tonart/liszt
+                     racket/set syntax/id-set))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
 (module+ test (require rackunit (for-syntax rackunit)))
@@ -24,18 +26,18 @@
           [(p:id a:number o:number) (qq-art n (note p a o))]))
        (qq-art stx (ix-- the-note* ...))])))
 
-(define-syntax note-drawer 
-  (drawer/s
-    (λ (e width height)
-      (syntax-parse e
-        [({~literal note} p a o)
-         (define-values (qh 3qh hw) (values (* height 1/4) (* height 3/4) (* width 1/2)))
-         #`(overlay hw 3qh 
-             (overlay 
-               (text #,(format "~a~a~a" (syntax-e #'p) (syntax-e #'a) (syntax-e #'o)) 24 'blue) 
-               (circle 15 'outline 'blue))
-             (rectangle width height 'solid 'transparent)) ]
-        [_ #f]))))
+(define-for-syntax (do-draw-note p a o)
+  (define p* (string-upcase (symbol->string (syntax-e p))))
+  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"]))
+  (define o* (syntax-e o))
+  #`(add-line (overlay (text #,(format "~a~a~s" p* a* o*) 12 'red) (circle 9 'outline 'black) (circle 8 'solid 'blue)) 18 9 18 -20 'black))
+
+(define-drawer draw-note
+  (λ (stx)
+    (syntax-parse stx
+      [({~datum note} p a o) (do-draw-note #'p #'a #'o)])))
+
+(register-drawer! note draw-note)
 
 ;; convert notes in a context to tones. requires a tuning
 (begin-for-syntax
@@ -407,3 +409,98 @@
           #:with (_ (_ p* a* o*) ...) (car the-note-sequences)
           (qq-art ch (context #,(delete-expr (car the-note-sequences)) (voiced-chord p a mods (p* a* o*) ...)))])]
       [_ ch])))
+
+(define-art-embedding (measure [items])
+  (λ (stx ctxt)
+    (syntax-parse stx
+      [(head:id expr ...)
+       (rewrite (quasisyntax/loc stx (|@| () expr ...)))])))
+
+(define-for-syntax (measure-spacer)
+  #'(overlay (line 0 40 'black) (rectangle 10 40 'solid 'transparent)))
+
+(define-drawer draw-measure
+  (λ (stx)
+    (syntax-parse stx
+      [(_ expr ...)
+       (define d (do-draw-music-voice (syntax->list #'(expr ...)) (drawer-height)))
+       #`(beside #,(measure-spacer) #,d #,(measure-spacer))])))
+
+(define-art-rewriter enclose-in-measures
+  (λ (stx)
+    
+    (define objs-to-enclose (syntax-parse stx [(_ [objs:id ...]) (immutable-free-id-set (syntax->list #'(objs ...)))]))
+    (define voices (voice-find-all (current-ctxt)))
+
+    (println (set->list voices))
+
+    (define ctxt*-
+      (filter 
+        (λ (e) (syntax-parse e [(head:id _ ...) (free-id-set-member? objs-to-enclose #'head)]))
+        (current-ctxt)))
+
+    (println "filtered ctxt")
+    
+    ;; make end the same for all voices so we get the same number of measures
+    (define end (apply max (cons 0 (map (λ (e) (or (expr-interval-end e) 0)) ctxt*-))))
+
+    (define voice-results 
+      (for/list ([v (in-set voices)])
+
+          (define ctxt*
+            (filter (λ (e) (context-within? (get-id-ctxt e) (list #`(voice #,v)) (current-ctxt)))
+              ctxt*-))
+
+        (define time-sigs 
+          (context-ref*/within (current-ctxt) 
+            (get-id-ctxt (put-in-id-ctxt (ensure-id-ctxt stx) #`(voice #,v))) #'time-sig))
+
+        (for/fold ([acc '()]) 
+                  ([time time-sigs])
+
+          (define/syntax-parse (_ num*:number denom*:number) time)
+          (define/syntax-parse (_ (_ start*:number) (_ end*:number)) 
+            (or (context-ref (get-id-ctxt time) #'interval) #'(interval (start 0) (end +inf.0))))
+          (match-define (list start end- num denom) (map syntax-e (list #'start* #'end* #'num* #'denom*)))
+
+          (define result
+            ;; FIXME improve runtime
+            (for/list ([s (in-range start end num)] [e (in-range (+ start num) (+ end num) num)])
+              (define objs- (context-ref*/interval-intersect ctxt* (list #`(interval (start #,s) (end #,e)))))
+              (define objs 
+                (for/list ([obj objs-]) 
+                  (define iv (car obj))
+                  (define iv* (interval-syntax->datum (context-ref (get-id-ctxt (cdr obj)) #'interval)))
+                  (define result (put-in-id-ctxt (cdr obj) #`(interval (start #,(car iv)) (end #,(cdr iv)))))
+                  (cond
+                    [(equal? iv iv*) result]
+                    [(= (car iv) (car iv*)) (put-in-id-ctxt result #'(tie start))]
+                    [(= (cdr iv) (cdr iv*)) (put-in-id-ctxt result #'(tie stop))]
+                    [else (println obj) (println iv*) (error 'enclose-in-measures "not sure yet")])))
+              #`(measure #,@objs)))
+
+        #`(voice@ (#,v) #,@(map delete-expr ctxt*) (seq (ix-- #,@result))))))
+    #`(context #,@voice-results)))
+
+(define-art-rewriter insert-rests
+  (λ (stx)
+    (define measures (context-ref*/within (current-ctxt) (get-id-ctxt stx) #'measure))
+    (define result 
+      (for/list ([i (in-naturals)] [m measures])
+        (syntax-parse m
+          [(_ expr ...)
+           (define/syntax-parse (_ num _) (require-context (current-ctxt) m #'time-sig))
+           (define sorted-exprs (sort (syntax->list #'(expr ...)) < #:key expr-interval-start))
+           (qq-art m 
+             (measure
+               #,@(for/fold ([acc '()] #:result (reverse acc))
+                            ([e sorted-exprs] 
+                             [e2 (cdr (append sorted-exprs
+                                         (list (put-in-id-ctxt (ensure-id-ctxt #'(music-rest))
+                                                 #`(interval (start #,(* (syntax-e #'num) (add1 i))) (end +inf.0))))))])
+                    (define t (expr-interval-end e))
+                    (define t* (expr-interval-start e2))
+                    (if (= t t*)
+                      (cons e acc)
+                      (cons e (cons (put-in-id-ctxt (ensure-id-ctxt #'(music-rest)) #`(interval (start #,t) (end #,t*))) acc))))))])))
+    #`(context #,@(map delete-expr measures) #,@result)))

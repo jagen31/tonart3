@@ -1,4 +1,4 @@
 #lang racket
 
-(require tonart/private/rewriter/church/hymn)
-(provide (all-from-out tonart/private/rewriter/church/hymn))
+(require tonart/private/church/hymn)
+(provide (all-from-out tonart/private/church/hymn))

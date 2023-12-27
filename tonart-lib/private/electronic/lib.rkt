@@ -1,6 +1,6 @@
 #lang racket
 
-(require art tonart/private/rewriter/lib
+(require art tonart/private/lib
   (for-syntax syntax/parse racket/match racket/list) rsound rsound/envelope sf2-parser)
 (provide (all-defined-out))
 

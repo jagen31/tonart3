@@ -1,7 +1,7 @@
 #lang racket
 
 (require art
-         tonart/private/realizer/electronic/lib
+         tonart/private/electronic/lib
          (for-syntax syntax/parse racket/match racket/list))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 

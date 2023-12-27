@@ -1,8 +1,7 @@
 #lang racket
 
-(require art art/timeline art/sequence art/coordinate/subset
-         (for-syntax syntax/parse racket/list racket/match
-                     tonart/liszt))
+(require art art/timeline art/sequence art/coordinate/subset 2htdp/image
+         (for-syntax syntax/parse racket/list racket/match racket/math tonart/liszt racket/set syntax/id-set))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
 ;; define-coordinate interval (copy-coordinate std:interval) or something
@@ -63,6 +62,53 @@
     (syntax-parse stx
       [(head:id expr ...)
        (rewrite (quasisyntax/loc stx (@ () expr ...)))])))
+
+(define-for-syntax (do-draw-music-voice ctxt* each-height)
+
+  (define max-end
+    (for/fold ([acc 0]) ([e ctxt*])
+      (define end (expr-interval-end e))
+      (if (infinite? end) acc (max acc end))))
+
+  (define each-width (/ (drawer-width) (add1 max-end)))
+
+  (for/fold ([im #'empty-image])
+            ([e ctxt*])
+    (match-define (cons start end) (expr-interval e))
+
+    (define end* (if (infinite? end) max-end end))
+    (define x-start (* start each-width))
+    (define x-end (* (add1 end*) each-width))
+    (define width* (- x-end x-start))
+
+    (define sub-pic 
+      (parameterize ([drawer-width width*] [drawer-height each-height]) 
+        (drawer-recur e)))
+
+    #`(overlay/offset #,sub-pic #,(- x-start) 0 #,im)))
+   
+(define-for-syntax (do-draw-music ctxt)
+  ;; FIXME jagen library fn
+
+  (define voices (voice-find-all ctxt))
+  (define each-height (/ (drawer-height) (add1 (set-count voices))))
+
+  #`(above/align 'left
+    #,@(for/list ([voice-index (in-naturals)] [v voices])
+         (define ctxt* (filter (λ (expr) (context-within? (get-id-ctxt expr) (list #`(voice #,v)) ctxt)) ctxt))
+
+         #`(beside (overlay (text #,(format "~a:" (symbol->string (syntax->datum v))) 16 'black) (rectangle 60 #,each-height 'solid 'transparent))
+             #,(do-draw-music-voice ctxt* each-height)))
+    empty-image))
+  
+
+
+(define-drawer draw-music 
+  (λ (stx)
+    (syntax-parse stx
+      [(_ expr ...) (do-draw-music (syntax->list #'(expr ...)))])))
+
+(register-drawer! music draw-music)
 
 (define-mapping-rewriter (rewrite-in-music [(: s music)])
   (λ (stx s)

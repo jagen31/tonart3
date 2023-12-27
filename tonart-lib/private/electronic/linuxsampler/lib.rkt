@@ -2,7 +2,7 @@
 
 (require 
   art art/timeline art/coordinate/instant art/coordinate/switch 
-  tonart/private/rewriter/lib tonart/private/realizer/electronic/lib 
+  tonart/private/lib tonart/private/electronic/lib 
   racket/runtime-path rsound rsound/envelope sf2-parser
   (for-syntax syntax/parse racket/match racket/list racket/string racket/dict))
 (provide (all-defined-out))

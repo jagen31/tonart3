@@ -1,7 +1,7 @@
 #lang racket
 
 (require art art/sequence art/timeline
-         tonart/private/rewriter/lib tonart/private/rewriter/common-practice/lib 
+         tonart/private/lib tonart/private/common-practice/lib 
          (for-syntax syntax/parse))
 (provide (all-defined-out))
 
