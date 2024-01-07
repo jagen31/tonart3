@@ -9,19 +9,21 @@
 
 (define-mapping-rewriter (st-flavian->rhythm [(: melodies st-flavian)])
   (λ (stx melody)
-    (rewrite1
+  #`(context
+    #,@(rewrite
       (qq-art melody
-        (rhythm 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3)))))
+        (rhythm 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3))))))
 
-(define-mapping-rewriter (st-flavian->^s [(: melodies st-flavian)])
+(define-mapping-rewriter (st-flavian->tune [(: melodies st-flavian)])
   (λ (stx melody)
-    (rewrite1
+    #`(context
+    #,@(rewrite
       (qq-art melody
         (@ ()
-          (scale-degree-seq 1 1 0 1 3 2 2 1 1 4 3 1 2 3 3 3 4 5 3 1 2 3 3 2 1 1 0 1)
+          (seq (^s 1 1 0 1 3 2 2 1 1 4 3 1 2 3 3 3 4 5 3 1 2 3 3 2 1 1 0 1))
           (st-flavian)
           (st-flavian->rhythm)
-          (apply-rhythm))))))
+          (apply-rhythm)))))))
 
 (define-art-object (stuttgart []))
 
@@ -37,6 +39,24 @@
         [1 (note g 0 4)] [1 (note a 0 4)] [1 (note g 0 4)] [1 (note f 1 4)]
         [1 (note g 0 4)] [1 (note e 0 4)] [1 (note d 0 4)] [1 (note g 0 4)]
         [1 (note g 0 4)] [1 (note f 1 4)] [2 (note g 0 4)]))))
+
+(define-art-object (picardy []))
+
+(define-mapping-rewriter (picardy->rhythm [(: melodies picardy)])
+  (λ (stx melody)
+     (qq-art melody 
+       (rhythm 1 1 1 1 2 1 1 2 2 1 1 1 1 2 1 1 4 
+               1 1 1 1 2 1 1 2 2 1 1 1 1 2 1 1 4 
+               1 1 1 1 3 1 1 1 1 1 4 1 1 1 1 2 1 1 4))))
+
+(define-mapping-rewriter (picardy->^s [(: melodies picardy)])
+  (λ (stx melody)
+     #`(context 
+       #,@(rewrite 
+            (qq-art melody 
+              (^s 1 2 3 4 5 5 4 5 5 5 5 6 7 6 5 4 5 
+                  1 2 3 4 5 5 4 5 5 5 5 6 7 6 5 4 5 
+                  5 5 8 5 4 3 1 3 5 3 2 5 5 8 5 4 2 3 1))))))
 
 (define-art-object (thaxted-a []))
 
@@ -61,7 +81,7 @@
 
 (define-mapping-rewriter (hyfrydol->rhythm [(: melody hyfrydol)])
   (λ(stx melody)
-    (rewrite1
+    (rewrite
       (qq-art melody
         (context
           (-- 0 [48 (loop 24 (hyf-phrase1))]

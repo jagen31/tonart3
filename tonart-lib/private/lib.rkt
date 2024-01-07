@@ -1,7 +1,7 @@
 #lang racket
 
 (require art art/timeline art/sequence art/coordinate/subset 2htdp/image
-         (for-syntax syntax/parse racket/list racket/match racket/math tonart/liszt racket/set syntax/id-set))
+         (for-syntax syntax/parse racket/list racket/match racket/math tonart/liszt racket/set syntax/id-set racket/format))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
 ;; define-coordinate interval (copy-coordinate std:interval) or something
@@ -55,8 +55,6 @@
 
 (define-subset-coordinate voice voice@)
 
-(realize (quote-realizer) (voice@ (test) (number 123)))
-
 (define-art-embedding (music [items])
   (λ (stx ctxt)
     (syntax-parse stx
@@ -66,26 +64,39 @@
 (define-for-syntax (do-draw-music-voice ctxt* each-height)
 
   (define max-end
-    (for/fold ([acc 0]) ([e ctxt*])
+    (for/fold ([acc 1]) ([e ctxt*])
       (define end (expr-interval-end e))
       (if (infinite? end) acc (max acc end))))
 
-  (define each-width (/ (drawer-width) (add1 max-end)))
+  (define each-width (/ (drawer-width) max-end))
+  (define line
+    (for/fold ([im #'empty-image])
+              ([i (in-range max-end 2)])
+      #`(beside #,im 
+          (overlay (text #,(~s (add1 i)) 16 'blue) 
+                   (rectangle #,(* each-width 2) 10 'solid 'transparent)))))
 
-  (for/fold ([im #'empty-image])
-            ([e ctxt*])
-    (match-define (cons start end) (expr-interval e))
 
-    (define end* (if (infinite? end) max-end end))
-    (define x-start (* start each-width))
-    (define x-end (* (add1 end*) each-width))
-    (define width* (- x-end x-start))
+    (for/fold ([im #`(rectangle #,(drawer-width) #,(drawer-height) 'solid 'transparent)])
+                ([e ctxt*])
+        (match-define (cons start end) (expr-interval e))
 
-    (define sub-pic 
-      (parameterize ([drawer-width width*] [drawer-height each-height]) 
-        (drawer-recur e)))
+        (define end* (if (infinite? end) max-end end))
+        (define x-start (* start each-width))
+        (define x-end (* end* each-width))
+        (define width* (- x-end x-start))
 
-    #`(overlay/offset #,sub-pic #,(- x-start) 0 #,im)))
+        (define sub-pic 
+          (parameterize ([drawer-width width*] [drawer-height each-height]) 
+            (drawer-recur e)))
+
+        #`(overlay/xy
+            (add-line (add-line (add-line
+              #,sub-pic 
+              0 10 #,width* 10 'purple)
+              0 0 0 20 'purple)
+              #,width* 0 #,width* 20 'purple)
+              #,(- x-start) #,(- (/ (drawer-height) 2)) #,im)))
    
 (define-for-syntax (do-draw-music ctxt)
   ;; FIXME jagen library fn
@@ -99,6 +110,7 @@
 
          #`(beside (overlay (text #,(format "~a:" (symbol->string (syntax->datum v))) 16 'black) (rectangle 60 #,each-height 'solid 'transparent))
              #,(do-draw-music-voice ctxt* each-height)))
+    empty-image
     empty-image))
   
 

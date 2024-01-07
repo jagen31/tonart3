@@ -5,6 +5,8 @@
          xml 2htdp/image 2htdp/universe (prefix-in cute: 2htdp/planetcute)
   (for-syntax racket/string syntax/parse racket/list racket/match racket/dict racket/set syntax/to-string fmt racket/math
               (except-in xml attribute) "mxml.rkt" syntax/id-table syntax/id-set))
+
+(provide (all-defined-out) (for-syntax (all-defined-out)))
   
 (define-coordinate (duration [d]))
 ;; FIXME jagen cruft- this should be default
@@ -29,12 +31,10 @@
 
 (define-mapping-rewriter (note->mxml-note [(: n note)])
   (λ (stx n)
-    (println "here")
     (syntax-parse n
       [(_ p a o)
        #:with (_ _ denom) (require-context (current-ctxt) n #'time-sig)
        #:do [
-        (println "interval")
         (define the-dur- (- (expr-interval-end n) (expr-interval-start n)))
         (define the-dur (/ the-dur- (syntax-e #'denom)))]
        #:with (dur dot ...)
@@ -48,6 +48,7 @@
 
 (define-mapping-rewriter (rest->mxml-rest [(: r music-rest)])
   (λ (stx r)
+    (println (un-@ r))
     (syntax-parse r
       [(_)
        #:with (_ _ denom) (require-context (current-ctxt) r #'time-sig)
@@ -65,7 +66,6 @@
        
 (define-mapping-rewriter (measure->mxml-measure [(: m measure)])
   (λ (stx m)
-  (println "HERE")
     (syntax-parse m
       [(_ expr ...)
        (define sig (require-context (current-ctxt) m #'time-sig))
@@ -74,7 +74,7 @@
            #,@(run-art-exprs 
             (list #'(note->mxml-note) #'(rest->mxml-rest) (delete-expr sig)) 
             (cons sig (syntax->list #'(expr ...)))))))))
-        (println "DONE") result])))
+       result])))
 
 (define-art-rewriter load-musicxml
   (λ (stx)
@@ -329,7 +329,7 @@
   [and-if-you-ever (context (rhythm 0.5 1 0.5 1 1 1 3) (seq (^s 4 5 4 2 7 6 5)))]
   [you-would-even (context (rhythm 0.5 0.5 0.5 0.5 1 1 3) (seq (^s 5 6 5 6 5 6 3)))])
 
-(rs-write
+#;(rs-write
  (realize (music-rsound-realizer)
   (voice@ (melody) (-- [8 (rudolph-the-red)] [8 (had-a-very-shiny)] [8 (and-if-you-ever)] [8 (you-would-even)]))
 
@@ -355,7 +355,7 @@
   (note->midi))
  "rudolph.wav")
 
-  (realize (draw-trace-realizer [1200 800])
+  #;(realize (draw-trace-realizer [1200 800])
     (reflected
       (music
        (voice@ (melody) (-- [8 (rudolph-the-red)] [8 (had-a-very-shiny)] [8 (and-if-you-ever)] [8 (you-would-even)]))
@@ -381,7 +381,7 @@
      (insert-rests)
      (measure->mxml-measure) #:capture [time-sig]))))
 
-(write-xml
+#;(write-xml
   (realize (unload-musicxml)
     (voice@ (melody) (-- [8 (rudolph-the-red)] [8 (had-a-very-shiny)] [8 (and-if-you-ever)] [8 (you-would-even)]))
 
@@ -409,7 +409,7 @@
 
 
 
-(realize (draw-trace-realizer [1200 800])
+#;(realize (draw-trace-realizer [1200 800])
   (reflected
    (music
     (voice@ (melody) (-- [8 (rudolph-the-red)] [8 (had-a-very-shiny)] [8 (and-if-you-ever)] [8 (you-would-even)]))

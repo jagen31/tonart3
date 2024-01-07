@@ -5,7 +5,7 @@
          tonart/private/electronic/lib
          tonart/private/common-practice/coordinate/metric-interval
          2htdp/image
-         (for-syntax syntax/parse racket/match racket/list tonart/liszt
+         (for-syntax syntax/parse racket/match racket/math racket/list tonart/liszt
                      racket/set syntax/id-set))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
@@ -87,11 +87,19 @@
 (define-art-object (key [pitch accidental mode]))
 (define-art-object (^ [degree]))
 
+(begin-for-syntax
+  (define-syntax-class ^/sc
+    (pattern ({~literal ^} num:number) #:attr accidental #'0)
+    (pattern ({~literal ^} num:number accidental:number)))
+  (define-syntax-class shorthand-^
+    (pattern num:number #:attr accidental #'0)
+    (pattern [num:number accidental:number])))
+
 (define-art-rewriter ^s 
   (λ (stx)
     (syntax-parse stx
-      [(_ degree:number ...)
-       (qq-art stx (ix-- (^ degree) ...))])))
+      [(_ degree:shorthand-^ ...)
+       (qq-art stx (ix-- (^ degree.num degree.accidental) ...))])))
 
 (define-art-object (octave [o]))
 
@@ -106,20 +114,20 @@
            (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
                      ([expr (current-ctxt)])
              (syntax-parse expr
-               [({~literal ^} ix:number)
+               [degree:^/sc
                 (define key (require-context (current-ctxt) expr #'key))
                 (define octave- (require-context (current-ctxt) expr #'octave)) 
                 (syntax-parse #`(#,key #,octave-)
                   [(({~literal key} pitch:id accidental:number mode:id) ({~literal octave} oct:number))
                    (define octave (syntax-e #'oct))
                    (define scale (generate-scale (syntax->datum #'pitch) (syntax->datum #'accidental) (syntax->datum #'mode)))
-                   (define ix* (sub1 (syntax-e #'ix)))
+                   (define ix* (sub1 (syntax-e #'degree.num)))
                    (match-define (list p a) (list-ref scale (modulo ix* 7)))
 
                    (define c (index-where scale (λ (x) (eq? (car x) 'c))))
                    (define o (+ octave (floor (/ (- ix* c) 7))))
 
-                   (values (cons (qq-art expr (note #,p #,a #,o)) acc1) (cons (delete-expr expr) acc2))])]
+                   (values (cons (qq-art expr (note #,p #,(+ a (syntax-e #'degree.accidental)) #,o)) acc1) (cons (delete-expr expr) acc2))])]
                [_ (values acc1 acc2)])))
          (append deletes exprs))
      #'(@ () result ...)]))
@@ -185,6 +193,7 @@
          (flatten
            (for/list ([expr (current-ctxt)])
              (define the-minterval (context-ref (get-id-ctxt expr) #'metric-interval))
+             (println "converting minterval")
              (if the-minterval
                (list (delete-expr expr) 
                      (put-in-id-ctxt 
@@ -309,8 +318,6 @@
                 (qq-art crd (note p a o))))
           #'(@ () result ...)])])))
  
-(realize (quote-realizer) (seq (chords (a 0 M))) (rhythm 2) (apply-rhythm) #;(chord->notes/simple 4))
-
 (define-art-object (voiced-chord [pitch accidental mode notes ...]))
 
 ;; (seq chord | voiced-chord) -> (seq voiced-chord)
@@ -426,23 +433,23 @@
        (define d (do-draw-music-voice (syntax->list #'(expr ...)) (drawer-height)))
        #`(beside #,(measure-spacer) #,d #,(measure-spacer))])))
 
+(register-drawer! measure draw-measure)
+
 (define-art-rewriter enclose-in-measures
   (λ (stx)
     
+    (println (map un-@ (current-ctxt)))
     (define objs-to-enclose (syntax-parse stx [(_ [objs:id ...]) (immutable-free-id-set (syntax->list #'(objs ...)))]))
     (define voices (voice-find-all (current-ctxt)))
-
-    (println (set->list voices))
 
     (define ctxt*-
       (filter 
         (λ (e) (syntax-parse e [(head:id _ ...) (free-id-set-member? objs-to-enclose #'head)]))
         (current-ctxt)))
 
-    (println "filtered ctxt")
-    
     ;; make end the same for all voices so we get the same number of measures
-    (define end (apply max (cons 0 (map (λ (e) (or (expr-interval-end e) 0)) ctxt*-))))
+    (define end (apply max (cons 0 
+      (map (λ (e) (or (and (not (infinite? (expr-interval-end e))) (expr-interval-end e)) 0)) ctxt*-))))
 
     (define voice-results 
       (for/list ([v (in-set voices)])
@@ -467,6 +474,7 @@
             ;; FIXME improve runtime
             (for/list ([s (in-range start end num)] [e (in-range (+ start num) (+ end num) num)])
               (define objs- (context-ref*/interval-intersect ctxt* (list #`(interval (start #,s) (end #,e)))))
+
               (define objs 
                 (for/list ([obj objs-]) 
                   (define iv (car obj))
@@ -476,7 +484,9 @@
                     [(equal? iv iv*) result]
                     [(= (car iv) (car iv*)) (put-in-id-ctxt result #'(tie start))]
                     [(= (cdr iv) (cdr iv*)) (put-in-id-ctxt result #'(tie stop))]
-                    [else (println obj) (println iv*) (error 'enclose-in-measures "not sure yet")])))
+                    [else (println obj) (println iv*) 
+                          result
+                          #;(error 'enclose-in-measures "not sure yet")])))
               #`(measure #,@objs)))
 
         #`(voice@ (#,v) #,@(map delete-expr ctxt*) (seq (ix-- #,@result))))))
@@ -504,3 +514,8 @@
                       (cons e acc)
                       (cons e (cons (put-in-id-ctxt (ensure-id-ctxt #'(music-rest)) #`(interval (start #,t) (end #,t*))) acc))))))])))
     #`(context #,@(map delete-expr measures) #,@result)))
+
+(define-mapping-rewriter (number->^ [(: n number)])
+  (λ (stx n)
+    (syntax-parse n
+      [(_ val) (qq-art n (^ val))])))
