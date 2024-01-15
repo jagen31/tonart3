@@ -50,13 +50,13 @@
                ([stx ctxt])
       (syntax-parse stx
         [({~literal tone} freq) 
-
+         #:with (_ vol:number) (require-context (lookup-ctxt) stx #'volume)
          (define-values (start* end*) (syntax-parse (context-ref (get-id-ctxt stx) #'interval) 
            [({~literal interval} ({~literal start} val:number) ({~literal end} val2:number)) (values (syntax-e #'val) (syntax-e #'val2))]))
          ;; FIXME jagen THIS ASSUMES UNIFORM TEMPO
          (cons #`(let ([duration (get-duration #,start* #,end* 60)]) 
              (cons (round (* #,start* (default-sample-rate)))
-                   (rs-scale 2 (rs-mult (sine-window duration (floor (/ duration 4))) (make-tone freq 0.1 duration))))) acc)]
+                   (rs-scale 2 (rs-mult (hann-window duration) (make-tone freq (* vol 0.05) duration))))) acc)]
         [_ acc]))))
       
 (define preset-memo (make-hash))

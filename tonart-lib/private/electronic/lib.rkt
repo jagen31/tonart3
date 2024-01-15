@@ -1,11 +1,17 @@
 #lang racket
 
-(require art tonart/private/lib
+(require art art/sequence tonart/private/lib 
   (for-syntax syntax/parse racket/match racket/list) rsound rsound/envelope sf2-parser)
 (provide (all-defined-out))
 
 ;;;;;;; TONES - these are pretty easy to have a computer perform.
 (define-art-object (tone [freq]))
+
+(define-art-object (volume [n]))
+
+(define-art-rewriter tones
+  (λ (stx)
+    (syntax-parse stx [(_ the-tone:number ...) (qq-art stx (ix-- (tone the-tone) ...))])))
 
 ;; MIDI- an alternative to sine waves
 (define-art-object (midi [num]))

@@ -95,6 +95,15 @@
     (pattern num:number #:attr accidental #'0)
     (pattern [num:number accidental:number])))
 
+(define-drawer draw-^
+  (λ (stx)
+    (syntax-parse stx
+      [d:^/sc 
+       #:with acc (match (syntax-e (attribute d.accidental)) [0 #'""] [1 #'"#"] [-1 #'"b"])
+       #'(beside (above (text "^" 24 'blue) (text (~a d.num) 24 'blue)) (text acc 24 'blue))])))
+
+(register-drawer! ^ draw-^)
+
 (define-art-rewriter ^s 
   (λ (stx)
     (syntax-parse stx
@@ -115,8 +124,8 @@
                      ([expr (current-ctxt)])
              (syntax-parse expr
                [degree:^/sc
-                (define key (require-context (current-ctxt) expr #'key))
-                (define octave- (require-context (current-ctxt) expr #'octave)) 
+                (define key (require-context (lookup-ctxt) expr #'key))
+                (define octave- (require-context (lookup-ctxt) expr #'octave)) 
                 (syntax-parse #`(#,key #,octave-)
                   [(({~literal key} pitch:id accidental:number mode:id) ({~literal octave} oct:number))
                    (define octave (syntax-e #'oct))
@@ -131,6 +140,64 @@
                [_ (values acc1 acc2)])))
          (append deletes exprs))
      #'(@ () result ...)]))
+
+(define-art-object (^o [degree]))
+
+(begin-for-syntax
+  (define-syntax-class ^o/sc
+    (pattern ({~literal ^o} num:number octave:number) #:attr accidental #'0)
+    (pattern ({~literal ^o} num:number accidental:number octave:number)))
+  (define-syntax-class shorthand-^o
+    (pattern [num:number octave:number] #:attr accidental #'0)
+    (pattern [num:number accidental:number octave:number])))
+
+(define-drawer draw-^o
+  (λ (stx)
+    (syntax-parse stx
+      [d:^o/sc 
+       #:with acc (match (syntax-e (attribute d.accidental)) [0 #'""] [1 #'"#"] [-1 #'"b"])
+       #'(beside (above (text "^" 24 'blue) (text (~a d.num) 24 'blue)) (text acc 24 'blue) (text (~a d.octave) 24 'blue))])))
+
+(register-drawer! ^o draw-^o)
+
+(define-art-rewriter ^o->note
+  (syntax-parser
+    [_ 
+     #:with (result ...)
+       (begin
+         (define-values (exprs deletes)
+           (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
+                     ([expr (current-ctxt)])
+             (syntax-parse expr
+               [degree:^o/sc
+                (define key (require-context (lookup-ctxt) expr #'key))
+                (syntax-parse key
+                  [({~literal key} pitch:id accidental:number mode:id)
+                   (define octave (syntax-e (attribute degree.octave)))
+                   (define scale (generate-scale (syntax->datum #'pitch) (syntax->datum #'accidental) (syntax->datum #'mode)))
+                   (define ix* (sub1 (syntax-e #'degree.num)))
+                   (match-define (list p a) (list-ref scale (modulo ix* 7)))
+
+                   (define c (index-where scale (λ (x) (eq? (car x) 'c))))
+                   (define o (+ octave (floor (/ (- ix* c) 7))))
+
+                   (values (cons (qq-art expr (note #,p #,(+ a (syntax-e #'degree.accidental)) #,o)) acc1) (cons (delete-expr expr) acc2))])]
+               [_ (values acc1 acc2)])))
+         (append deletes exprs))
+     #'(@ () result ...)]))
+
+(define-mapping-rewriter (note->^o [(: n note)])
+  (λ (stx n)
+    (syntax-parse n
+      [(_ p a o)
+       (define/syntax-parse (_ key-pitch key-accidental mode) (require-context (lookup-ctxt) n #'key))
+       #;(define octave- (require-context (lookup-ctxt) expr #'octave)) 
+       (define scale (generate-scale (syntax->datum #'key-pitch) (syntax->datum #'key-accidental) (syntax->datum #'mode)))
+       (define ix (index-where scale (λ (n*) (eq? (car n*) (syntax-e #'p)))))
+       (match-define (list _ a*) (list-ref scale ix))
+       (define a** (- a* (syntax-e #'a)))
+
+       (qq-art n (^o #,(add1 ix) #,a** o))])))
 
 (define-art-object (transpose-diatonic []))
 (define-mapping-rewriter (run-transpose-diatonic [(: transposes transpose-diatonic)])
@@ -193,7 +260,6 @@
          (flatten
            (for/list ([expr (current-ctxt)])
              (define the-minterval (context-ref (get-id-ctxt expr) #'metric-interval))
-             (println "converting minterval")
              (if the-minterval
                (list (delete-expr expr) 
                      (put-in-id-ctxt 
@@ -421,7 +487,30 @@
   (λ (stx ctxt)
     (syntax-parse stx
       [(head:id expr ...)
-       (rewrite (quasisyntax/loc stx (|@| () expr ...)))])))
+       (rewrite (quasisyntax/loc stx (context expr ...)))])))
+
+(define-mapping-rewriter (rewrite-in-measure [(: s measure)])
+  (let ()
+    (define (go stx s)
+      (syntax-parse stx
+        [(_ expr ... {~seq #:capture [name:id ...]})
+         (syntax-parse s
+           [(_ expr* ...)
+             #:do [
+              (define names (immutable-free-id-set (syntax->list #'(name ...))))
+              (define captures 
+                (if (attribute name)
+                  (filter 
+                    (λ (e) (syntax-parse e 
+                      [(head:id _ ...) (free-id-set-member? names #'head)]))
+                    (current-ctxt))
+                  '()))]
+             #:with (result ...) 
+               (rewrite-in (append captures (syntax->list #'(expr* ...))) #`(context expr ... #,@(map delete-expr captures)))
+             #`(context #,(qq-art s (measure result ...)))])]
+       ;; FIXME jagen
+       [(head expr ...) (go #'(head expr ... #:capture []) s)]))
+    go))
 
 (define-for-syntax (measure-spacer)
   #'(overlay (line 0 40 'black) (rectangle 10 40 'solid 'transparent)))
@@ -438,7 +527,6 @@
 (define-art-rewriter enclose-in-measures
   (λ (stx)
     
-    (println (map un-@ (current-ctxt)))
     (define objs-to-enclose (syntax-parse stx [(_ [objs:id ...]) (immutable-free-id-set (syntax->list #'(objs ...)))]))
     (define voices (voice-find-all (current-ctxt)))
 
@@ -479,7 +567,10 @@
                 (for/list ([obj objs-]) 
                   (define iv (car obj))
                   (define iv* (interval-syntax->datum (context-ref (get-id-ctxt (cdr obj)) #'interval)))
-                  (define result (put-in-id-ctxt (cdr obj) #`(interval (start #,(car iv)) (end #,(cdr iv)))))
+                  (define result 
+                    (put-in-id-ctxt 
+                      (remove-from-id-ctxt (cdr obj) #'voice) 
+                      #`(interval (start #,(- (car iv) s)) (end #,(- (cdr iv) s)))))
                   (cond
                     [(equal? iv iv*) result]
                     [(= (car iv) (car iv*)) (put-in-id-ctxt result #'(tie start))]
@@ -494,26 +585,40 @@
 
 (define-art-rewriter insert-rests
   (λ (stx)
-    (define measures (context-ref*/within (current-ctxt) (get-id-ctxt stx) #'measure))
-    (define result 
-      (for/list ([i (in-naturals)] [m measures])
-        (syntax-parse m
-          [(_ expr ...)
-           (define/syntax-parse (_ num _) (require-context (current-ctxt) m #'time-sig))
-           (define sorted-exprs (sort (syntax->list #'(expr ...)) < #:key expr-interval-start))
-           (qq-art m 
-             (measure
-               #,@(for/fold ([acc '()] #:result (reverse acc))
-                            ([e sorted-exprs] 
-                             [e2 (cdr (append sorted-exprs
-                                         (list (put-in-id-ctxt (ensure-id-ctxt #'(music-rest))
-                                                 #`(interval (start #,(* (syntax-e #'num) (add1 i))) (end +inf.0))))))])
-                    (define t (expr-interval-end e))
-                    (define t* (expr-interval-start e2))
-                    (if (= t t*)
-                      (cons e acc)
-                      (cons e (cons (put-in-id-ctxt (ensure-id-ctxt #'(music-rest)) #`(interval (start #,t) (end #,t*))) acc))))))])))
-    #`(context #,@(map delete-expr measures) #,@result)))
+    (define voices (voice-find-all (current-ctxt)))
+
+    (define voice-results
+      (for/list ([v (in-set voices)])
+        (define ctxt*
+          (filter (λ (e) (context-within? (get-id-ctxt e) (list #`(voice #,v)) (current-ctxt)))
+            (current-ctxt)))
+        (define measures (context-ref*/within ctxt* (get-id-ctxt stx) #'measure))
+        (define result 
+          (for/list ([i (in-naturals)] [m measures])
+            (syntax-parse m
+              [(_ expr ...)
+               (define/syntax-parse (_ num _) (require-context (lookup-ctxt) m #'time-sig))
+               (define sorted-exprs (sort (syntax->list #'(expr ...)) < #:key expr-interval-start))
+               (define init 
+                 (cond [(or (empty? sorted-exprs) (zero? (expr-interval-start (car sorted-exprs))))
+                        '()]
+                       [else
+                        (list (put-in-id-ctxt (qq-art (car sorted-exprs) (music-rest)) 
+                                              #`(interval (start 0) (end #,(expr-interval-start (car sorted-exprs))))))]))
+               (qq-art m 
+                 (measure
+                   #,@(for/fold ([acc init] #:result (reverse acc))
+                                ([e sorted-exprs] 
+                                 [e2 (cdr (append sorted-exprs
+                                             (list (put-in-id-ctxt (ensure-id-ctxt #'(music-rest))
+                                                     #`(interval (start #,(syntax-e #'num)) (end +inf.0))))))])
+                        (define t (expr-interval-end e))
+                        (define t* (expr-interval-start e2))
+                        (if (= t t*)
+                          (cons e acc)
+                          (cons e (cons (put-in-id-ctxt (ensure-id-ctxt #'(music-rest)) #`(interval (start #,t) (end #,t*))) acc))))))])))
+        #`(voice@ (#,v) #,@(map delete-expr measures) #,@result)))
+      #`(context #,@voice-results)))
 
 (define-mapping-rewriter (number->^ [(: n number)])
   (λ (stx n)

@@ -2,7 +2,7 @@
 
 (require art art/sequence art/timeline art/sequence/ravel 
          tonart/private/lib tonart/common-practice tonart/rsound 
-         xml 2htdp/image 2htdp/universe (prefix-in cute: 2htdp/planetcute)
+         xml 2htdp/image
   (for-syntax racket/string syntax/parse racket/list racket/match racket/dict racket/set syntax/to-string fmt racket/math
               (except-in xml attribute) "mxml.rkt" syntax/id-table syntax/id-set))
 
@@ -13,33 +13,63 @@
 (define-hom-merge-rule duration (λ (l r _ __ ___) (or r l)))
 (define-hom-within?-rule duration (λ (l r _ __ ___) #t))
 
+(define-for-syntax (expr-duration stx)
+  (syntax-parse (context-ref (get-id-ctxt stx) #'duration) 
+    [(_ n:number) (syntax-e #'n)]
+    [_ #f]))
+
 ;; should this even me a coord or just an object that goes in id ctxt
 (define-coordinate (tie [start]))
 (define-hom-merge-rule tie (λ (l r _ __ ___) (or r l)))
 (define-hom-within?-rule tie (λ (l r _ __ ___) #t))
 
-
 (define-art-object (mxml-note [p a o]))
 (define-art-object (mxml-rest []))
+(define-art-object (mxml-chord [notes]))
 
 (define-art-embedding (mxml-measure [items])
   (λ (stx ctxt)
     (syntax-parse stx
       [(head:id expr ...)
-       (rewrite (quasisyntax/loc stx (|@| () expr ...)))])))
+       (rewrite (quasisyntax/loc stx (context expr ...)))])))
 
+(define-mapping-rewriter (rewrite-in-mxml-measure [(: s mxml-measure)])
+  (let ()
+    (define (go stx s)
+      (syntax-parse stx
+        [(_ expr ... {~seq #:capture [name:id ...]})
+         (syntax-parse s
+           [(_ expr* ...)
+             #:do [
+              (define names (immutable-free-id-set (syntax->list #'(name ...))))
+              (define captures 
+                (if (attribute name)
+                  (filter 
+                    (λ (e) (syntax-parse e 
+                      [(head:id _ ...) (free-id-set-member? names #'head)]))
+                    (current-ctxt))
+                  '()))]
+             #:with (result ...) 
+               (rewrite-in (append captures (syntax->list #'(expr* ...))) #`(context expr ... #,@(map delete-expr captures)))
+             #`(context #,(qq-art s (mxml-measure result ...)))])]
+       ;; FIXME jagen
+       [(head expr ...) (go #'(head expr ... #:capture []) s)]))
+    go))
 
 (define-mapping-rewriter (note->mxml-note [(: n note)])
   (λ (stx n)
     (syntax-parse n
       [(_ p a o)
-       #:with (_ _ denom) (require-context (current-ctxt) n #'time-sig)
+       #:with (_ _ denom) (require-context (lookup-ctxt) n #'time-sig)
+       #:with (_ divisions) (require-context (lookup-ctxt) n #'divisions)
        #:do [
         (define the-dur- (- (expr-interval-end n) (expr-interval-start n)))
-        (define the-dur (/ the-dur- (syntax-e #'denom)))]
+        (define the-dur (/ the-dur- (syntax-e #'denom) (syntax-e #'divisions)))]
        #:with (dur dot ...)
          (match (inexact->exact the-dur)
-           [1/16 #'(sixteenth)]
+           [1/32 #'(16th)]
+           [1/16 #'(16th)]
+           [1/12 #'(eighth triplet)]
            [1/8 #'(eighth)] [3/16 #'(eighth dot)]
            [1/4 #'(quarter)] [3/8 #'(quarter dot)]
            [1/2 #'(half)] [3/4 #'(half dot)]
@@ -48,33 +78,118 @@
 
 (define-mapping-rewriter (rest->mxml-rest [(: r music-rest)])
   (λ (stx r)
-    (println (un-@ r))
     (syntax-parse r
       [(_)
-       #:with (_ _ denom) (require-context (current-ctxt) r #'time-sig)
+       #:with (_ _ denom) (require-context (lookup-ctxt) r #'time-sig)
+       #:with (_ divisions) (require-context (lookup-ctxt) r #'divisions)
        #:do [
         (define the-dur- (- (expr-interval-end r) (expr-interval-start r)))
-        (define the-dur (/ the-dur- (syntax-e #'denom)))]
-       #:with (dur dot ...)
+        (define the-dur (/ the-dur- (syntax-e #'denom) (syntax-e #'divisions)))]
+       #:with (dur [dot ...] [triplet ...])
          (match (inexact->exact the-dur)
-           [1/16 #'(sixteenth)]
-           [1/8 #'(eighth)] [3/16 #'(eighth dot)]
-           [1/4 #'(quarter)] [3/8 #'(quarter dot)]
-           [1/2 #'(half)] [3/4 #'(half dot)]
-           [1 #'(whole)])
-       (qq-art r (|@| [(duration #,the-dur-)] (mxml-rest dur dot ...)))])))
+           [1/16 #'(16th [] [])]
+           [1/12 #'(eighth [] [triplet])]
+           [1/8 #'(eighth [] [])] [3/16 #'(eighth [dot])]
+           [1/4 #'(quarter [] [])] [3/8 #'(quarter [dot] [])]
+           [1/2 #'(half [] [])] [3/4 #'(half [dot] [])]
+           [1 #'(whole [] [])])
+       (qq-art r (|@| [(duration #,the-dur-)] (mxml-rest dur dot ... triplet ...)))])))
        
 (define-mapping-rewriter (measure->mxml-measure [(: m measure)])
   (λ (stx m)
     (syntax-parse m
       [(_ expr ...)
-       (define sig (require-context (current-ctxt) m #'time-sig))
+       (define sig (require-context (lookup-ctxt) m #'time-sig))
        (define result (qq-art m (mxml-measure 
          (seq (ix-- 
            #,@(run-art-exprs 
             (list #'(note->mxml-note) #'(rest->mxml-rest) (delete-expr sig)) 
-            (cons sig (syntax->list #'(expr ...)))))))))
+            (cons sig (syntax->list #'(expr ...)))
+            (lookup-ctxt)))))))
        result])))
+
+(define-art-object (note-group []))
+(define-mapping-rewriter (mxml-chord->note-group [(: c mxml-chord)])
+  (λ (stx c)
+    (syntax-parse c
+      [(_ ([p a o] ...) _ ...) 
+      (qq-art c (note-group [p a o] ...))])))
+
+(define-mapping-rewriter (ungroup-notes [(: ng note-group)])
+  (λ (stx ng) (syntax-parse ng [(_ [p a o] ...) (qq-art ng (context (note p a o) ...))])))
+
+(define-mapping-rewriter (mxml-measure->measure [(: m mxml-measure)])
+  (λ (stx m)
+    (syntax-parse m
+      [(_ expr ...)
+       (define result 
+         (qq-art m (measure 
+           #,@(run-art-exprs 
+                (list #'(rewrite-in-seq (mxml-note->note) (mxml-rest->rest) (mxml-chord->note-group)))
+                (syntax->list #'(expr ...))
+                (lookup-ctxt)))))
+       result])))
+
+(define-mapping-rewriter (mxml-note->note [(: n mxml-note)])
+  (λ (stx n)
+    (syntax-parse n [(_ p a o _ ...) (qq-art n (note p a o))])))
+
+(define-for-syntax (mxml-notes->chord ns)
+  (define/syntax-parse (mods ...)
+    (syntax-parse (car ns)
+      [(_ p a o mods ...) #'(mods ...)]))
+  (define/syntax-parse (clauses ...)
+    (for/list ([n ns])
+      (syntax-parse n
+        [(_ p a o _ ...) #'[p a o]])))
+  (qq-art (car ns) (mxml-chord (clauses ...) mods ...)))
+
+(define-art-rewriter extract-mxml-chords
+  (λ (stx)
+    (println "HERE")
+    (define result
+      (for/fold ([acc '()] [current-chord '()] [i -1] #:result (reverse acc))
+                ([e (append (current-ctxt) (list #'(mxml-rest)))])
+        (syntax-parse e
+          [({~literal mxml-note} _ ... {~datum chord} _ ...)
+           (println "HERE!")
+           (values acc (cons e current-chord) i)]
+          [({~or {~literal mxml-note} {~literal mxml-rest}} _ ...)
+           (cond 
+            ;; single note following non-note
+            [(null? current-chord) (values acc (list e) (add1 i))] 
+            ;; single note following note
+            [(= (length current-chord) 1) 
+             (values (cons (car (put-in-id-ctxt current-chord #`(index #,i))) acc) (list e) (add1 i))]
+            ;; end of chord
+            [else 
+              (values 
+                (cons (put-in-id-ctxt (mxml-notes->chord current-chord) #`(index #,i)) acc)
+                (list e) (add1 i))])])))
+    #`(replace-full-context #,@result)))
+
+(define-mapping-rewriter (durations->intervals [(: s seq)])
+  (λ (stx s)
+    (syntax-parse s
+      [(_ expr ...)
+       (define ctxt (syntax->list #'(expr ...)))
+       (define ordered (sort ctxt < #:key expr-single-index))
+       (define result
+         (for/fold ([result '()] [t 0] #:result (reverse result)) 
+                   ([expr ordered])
+           (define dur (expr-duration expr))
+           (values (cons #`(i@ [#,t #,(+ t dur)] #,(remove-from-id-ctxt (remove-from-id-ctxt expr #'duration) #'index)) result) (+ t dur))))
+       (qq-art stx (context #,@(map delete-expr ordered) #,@result))])))
+
+(define-mapping-rewriter (measure->music [(: m measure)])
+  (λ (stx m)
+    (syntax-parse m
+      [(_ expr ...) (qq-art m (music expr ...))])))
+
+(define-mapping-rewriter (mxml-rest->rest [(: r mxml-rest)])
+  (λ (stx r)
+    (syntax-parse r [(_ _ ...) (qq-art r (music-rest))])))
+
 
 (define-art-rewriter load-musicxml
   (λ (stx)
@@ -104,14 +219,15 @@
                        [(null? t-) '()]
                        [(= (length t-) 2) (list #'(tie continue))]
                        [else (list #`(tie #,(string->symbol (syntax-e (xml-attr (car t-) type)))))]))
-                   (quasisyntax/loc note 
-                     (|@| [(duration #,(string->number (syntax-e (xml-value dur)))) #,@t]
+                    #`(|@| [(duration #,(string->number (syntax-e (xml-value dur)))) #,@t]
+                      #,(quasisyntax/loc note 
                        (mxml-note 
                          #,(string->symbol (string-downcase (syntax-e (xml-value p))))
                          #,(string->number (syntax-e (if a (xml-value a) #'"0"))) 
                          #,(string->number (syntax-e (xml-value o)))
                          #,(string->symbol (syntax-e (xml-value g)))
-                         #,@(if (null? (xml-path note dot)) '() (list #'dot)))))))
+                         #,@(if (null? (xml-path note dot)) '() (list #'dot))
+                         #,@(if (null? (xml-path note chord)) '() (list #'chord)))))))
                (define time-sigs 
                  (for/list ([time-sig (xml-path measure attributes time)])
                    (match-define (list n d)
@@ -120,7 +236,7 @@
                (define divisions
                  (for/list ([division (xml-path measure attributes divisions)])
                    (quasisyntax/loc division (divisions #,(string->number (syntax-e (xml-value division)))))))
-             #`(mxml-measure (seq #,@time-sigs #,@divisions (ix-- #,@notes)))))
+             #`(mxml-measure #,@time-sigs #,@divisions (seq (ix-- #,@notes)))))
            #`(voice@ (#,(dict-ref part-hash (syntax-e (xml-attr part id)))) (seq (ix-- #,@measures))))
        #'(|@| () result ...)])))
 
@@ -169,8 +285,9 @@
 
 (define-for-syntax (generate-note n)
   (syntax-parse n
-    [({~literal mxml-note} p a o g {~optional {~and the-dot {~datum dot}}})
-     #:with (_ dur:number) (require-context (current-ctxt) n #'duration)
+    [({~literal mxml-note} p a o g {~optional {~and the-dot {~datum dot}}}
+                                   {~optional {~and the-triplet {~datum triplet}}})
+     #:with (_ dur:number) (require-context (lookup-ctxt) n #'duration)
      (define tie- (get-context (current-ctxt) n #'tie))
      (define-values (audio-tie visual-tie) (generate-tie-stmts tie-))
       @string-append{
@@ -185,6 +302,13 @@
         <voice>1</voice>
         <type>@(symbol->string (syntax-e #'g))</type>
         @(if (attribute the-dot) "<dot/>\n" "")
+        @(if (attribute the-triplet)
+          @string-append{
+        <time-modification>
+          <actual-notes>3</actual-notes>
+          <normal-notes>2</normal-notes>
+        </time-modification>
+          } "")
         <stem>down</stem>
         <notations>
           @visual-tie
@@ -192,7 +316,7 @@
         </note>
       }]
       [({~literal mxml-rest} g {~optional {~and the-dot {~datum dot}}})
-     #:with (_ dur:number) (require-context (current-ctxt) n #'duration)
+     #:with (_ dur:number) (require-context (lookup-ctxt) n #'duration)
       @string-append{
       <note>
         <rest/>
@@ -206,7 +330,7 @@
 (define-for-syntax (generate-measure m)
   (syntax-parse m
     [({~literal mxml-measure} ({~literal seq} inner-expr ...))
-     #:with (_ ix:number) (require-context (current-ctxt) m #'index)
+     #:with (_ ix:number) (require-context (lookup-ctxt) m #'index)
      (define maybe-div (context-ref (syntax->list #'(inner-expr ...)) #'divisions))
      (define maybe-time-sig (context-ref (syntax->list #'(inner-expr ...)) #'time-sig))
      (define notes 
@@ -250,11 +374,12 @@
 ;; convert sequences of mxml measures with appropriate coords into musicxml
 (define-art-realizer unload-musicxml
   (λ (stx)
-    (define seqs (context-ref* (current-ctxt) #'seq))
+    (define seqs- (context-ref* (current-ctxt) #'seq))
+    (define seqs (filter (λ (x) (syntax-parse x [(_ ({~literal mxml-measure} _ ...) ...) #t] [_ #f])) seqs-))
     (define-values (score-parts parts) 
       (for/foldr ([score-parts '()] [parts '()])
                  ([seq seqs])
-        (define/syntax-parse (_ v) (require-context (current-ctxt) seq #'voice))
+        (define/syntax-parse (_ v) (require-context (lookup-ctxt) seq #'voice))
         (syntax-parse seq
           [(_ expr ...)
            (define ms (for/list ([m (context-ref* (syntax->list #'(expr ...)) #'mxml-measure)]) (generate-measure m)))

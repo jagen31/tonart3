@@ -66,6 +66,7 @@ auto |@(car iname) = sampler->AddSamplerChannel();
 (define-subrealizer linuxsampler-midi-subrealizer
   (λ(ctxt*)
     (println "running midi subperf")
+    (println ctxt*)
     (define imap* (context-ref ctxt* #'instrument-map))
     (unless imap* (raise-syntax-error 'midi-subrealizer "no instrument map in context"))
     (define imap (syntax-parse imap* [(_ map ...) (syntax->datum #'(map ...))]))

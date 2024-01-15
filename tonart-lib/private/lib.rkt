@@ -1,7 +1,7 @@
 #lang racket
 
 (require art art/timeline art/sequence art/coordinate/subset 2htdp/image
-         (for-syntax syntax/parse racket/list racket/match racket/math tonart/liszt racket/set syntax/id-set racket/format))
+         (for-syntax syntax/parse racket/math racket/list racket/match racket/math tonart/liszt racket/set syntax/id-set racket/format))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
 ;; define-coordinate interval (copy-coordinate std:interval) or something
@@ -61,6 +61,21 @@
       [(head:id expr ...)
        (rewrite (quasisyntax/loc stx (@ () expr ...)))])))
 
+(define-art-rewriter m!
+  (λ (stx)
+    (syntax-parse stx
+      [(_ name:id)
+       (define result (syntax-local-value #'name (λ () #f)))
+       (unless (art-var/s? result)
+         (raise-syntax-error #f "expected art var" #'name))
+       (define exprs (art-var/s-value result))
+       (unless (= (length exprs) 1)
+         (raise-syntax-error #f "expected music var" #'name))
+       (syntax-parse (car exprs)
+         [({~literal music} inner-exprs ...)
+          (qq-art stx (context inner-exprs ...))]
+         [_ (raise-syntax-error #f "expected music var" #'name)])])))
+
 (define-for-syntax (do-draw-music-voice ctxt* each-height)
 
   (define max-end
@@ -105,9 +120,11 @@
   (define each-height (/ (drawer-height) (add1 (set-count voices))))
 
   #`(above/align 'left
+      (beside (overlay (text "<no-voice>" 16 'black) 
+                       (rectangle 60 #,each-height 'solid 'transparent))
+             #,(do-draw-music-voice (filter (λ (expr) (null? (expr-voice expr))) ctxt) each-height))
     #,@(for/list ([voice-index (in-naturals)] [v voices])
          (define ctxt* (filter (λ (expr) (context-within? (get-id-ctxt expr) (list #`(voice #,v)) ctxt)) ctxt))
-
          #`(beside (overlay (text #,(format "~a:" (symbol->string (syntax->datum v))) 16 'black) (rectangle 60 #,each-height 'solid 'transparent))
              #,(do-draw-music-voice ctxt* each-height)))
     empty-image
@@ -130,7 +147,7 @@
          [(_ exprs* ...)
            #:with (result ...) 
              (run-art-exprs
-               (syntax->list #'(exprs ...)) (syntax->list #'(exprs* ...)))
+               (syntax->list #'(exprs ...)) (syntax->list #'(exprs* ...)) (lookup-ctxt))
            #`(@ () #,(delete-expr s) #,(qq-art s (music result ...)))])])))
 
 (define-for-syntax (music-start stx)
@@ -141,7 +158,7 @@
 (define-for-syntax (music-end stx)
   (syntax-parse stx
     [({~literal music} expr ...)
-     (apply max (map expr-interval-end (syntax->list #'(expr ...))))]))
+     (apply max (map (compose (λ (e) (if (infinite? e) 0 e)) expr-interval-end) (syntax->list #'(expr ...))))]))
 
 (define-mapping-rewriter (inline-music-seq [(: s seq)])
   (λ (stx s)
