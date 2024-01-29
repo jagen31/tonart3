@@ -49,7 +49,7 @@
     [_ 
      #:with (result ...)
        (for/fold ([acc '()] #:result (reverse acc)) 
-                 ([expr (current-ctxt)])
+                 ([expr (context-ref*/within (current-ctxt) (get-id-ctxt this-syntax) #'note)])
          (syntax-parse expr
            [({~literal note} p a o)
             (define semis
@@ -71,7 +71,7 @@
        (begin
        (define-values (exprs deletes)
          (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
-                   ([expr (current-ctxt)])
+                   ([expr (context-ref*/within (current-ctxt) (get-id-ctxt this-syntax) #'note)])
            (syntax-parse expr
              [({~literal note} p a o)
               (define semis
@@ -137,6 +137,32 @@
                    (define o (+ octave (floor (/ (- ix* c) 7))))
 
                    (values (cons (qq-art expr (note #,p #,(+ a (syntax-e #'degree.accidental)) #,o)) acc1) (cons (delete-expr expr) acc2))])]
+               [_ (values acc1 acc2)])))
+         (append deletes exprs))
+     #'(@ () result ...)]))
+
+;; FIXME jagen sweet Jesus stop copying and pasting these functions and shorten it and maybe write
+;; a macro
+(define-art-rewriter ^->pitch
+  (syntax-parser
+    [_ 
+     #:with (result ...)
+       (begin
+         (define-values (exprs deletes)
+           (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
+                     ([expr (current-ctxt)])
+             (syntax-parse expr
+               [degree:^/sc
+                (define key (require-context (lookup-ctxt) expr #'key))
+                (syntax-parse key
+                  [({~literal key} p1tch:id accidental:number mode:id)
+                   (define scale (generate-scale (syntax->datum #'p1tch) (syntax->datum #'accidental) (syntax->datum #'mode)))
+                   (define ix* (sub1 (syntax-e #'degree.num)))
+                   (match-define (list p a) (list-ref scale (modulo ix* 7)))
+
+                   (define c (index-where scale (λ (x) (eq? (car x) 'c))))
+
+                   (values (cons (qq-art expr (pitch #,p #,(+ a (syntax-e #'degree.accidental)))) acc1) (cons (delete-expr expr) acc2))])]
                [_ (values acc1 acc2)])))
          (append deletes exprs))
      #'(@ () result ...)]))
@@ -338,22 +364,22 @@
           [(p:id a:number mods ...) (qq-art ch (chord p a [mods ...]))]))
        (qq-art stx (ix-- the-chord* ...))])))
 
-(define-art-object (relative-harmony [chords]))
+(define-art-object (relative-chords [chords]))
 
 (define-for-syntax (odd-even-list li) 
   (define (odd-even-list li lacc racc)
     (cond 
       [(null? li) (values (reverse lacc) (reverse racc))]
-      [(null? (cdr li)) (values (cons (car li) (reverse lacc)) (reverse racc))]
+      [(null? (cdr li)) (values (reverse (cons (car li) lacc)) (reverse racc))]
       [else (odd-even-list (cddr li) (cons (car li) lacc) (cons (cadr li) racc))]))
   (odd-even-list li '() '()))
 
-(define-mapping-rewriter (relative-harmony->chord-seq [(: harm relative-harmony)])
+(define-mapping-rewriter (relative-chords->seq [(: harm relative-chords)])
   (λ (stx harm)
     (syntax-parse harm
       [(_ harmony ...)
        (define start-pitch (context-ref/surrounding (current-ctxt) (get-id-ctxt harm) #'pitch))
-       (unless start-pitch (raise-syntax-error 'relative-harmony->chord-seq "no pitch in context for relative harmony" harm)) 
+       (unless start-pitch (raise-syntax-error 'relative-chords->seq "no pitch in context for relative chords" harm)) 
        (syntax-parse start-pitch
          [(_ p*:id a*:number)
           #:do
@@ -381,7 +407,7 @@
               (with-syntax ([p (first pc)] 
                             [a (second pc)] 
                             [o (if (>= (distance-above-c (first pc)) cdis) octave (add1 octave))])
-                (qq-art crd (note p a o))))
+                (remove-from-id-ctxt (qq-art crd (note p a o)) #'art-id)))
           #'(@ () result ...)])])))
  
 (define-art-object (voiced-chord [pitch accidental mode notes ...]))

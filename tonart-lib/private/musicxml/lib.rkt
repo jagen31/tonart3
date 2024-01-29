@@ -146,13 +146,11 @@
 
 (define-art-rewriter extract-mxml-chords
   (λ (stx)
-    (println "HERE")
     (define result
       (for/fold ([acc '()] [current-chord '()] [i -1] #:result (reverse acc))
                 ([e (append (current-ctxt) (list #'(mxml-rest)))])
         (syntax-parse e
           [({~literal mxml-note} _ ... {~datum chord} _ ...)
-           (println "HERE!")
            (values acc (cons e current-chord) i)]
           [({~or {~literal mxml-note} {~literal mxml-rest}} _ ...)
            (cond 

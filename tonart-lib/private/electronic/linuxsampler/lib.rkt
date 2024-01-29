@@ -51,7 +51,7 @@ auto |@(car iname) = sampler->AddSamplerChannel();
 |@(car iname)->SetAudioOutputDevice(device);
 |@(car iname)->SetEngineType("SFZ");
 |@(car iname)->GetEngineChannel()->PrepareLoadInstrument(
-|@(format "(fs::current_path() / \"..\" / \"..\" / \"resources\" / \"sfz\" / \"Jeux14\" / \"~a.sfz\").string().c_str()," (cdr iname))
+|@(format "(fs::current_path() / \"..\" / \"..\" / \"..\" / \"resources\" / \"sfz\" / \"Jeux14\" / \"~a.sfz\").string().c_str()," (cdr iname))
   0);
 |@(car iname)->GetEngineChannel()->LoadInstrument();
   
