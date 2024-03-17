@@ -158,7 +158,7 @@
             [(null? current-chord) (values acc (list e) (add1 i))] 
             ;; single note following note
             [(= (length current-chord) 1) 
-             (values (cons (car (put-in-id-ctxt current-chord #`(index #,i))) acc) (list e) (add1 i))]
+             (values (cons (put-in-id-ctxt (car current-chord) #`(index #,i)) acc) (list e) (add1 i))]
             ;; end of chord
             [else 
               (values 
@@ -558,5 +558,16 @@
     (voice@ (accomp) (instrument |Yamaha Grand Piano|))
     (note->midi))))
 
-#;(realize (draw-realizer [800 800])
-  (seq (ix-- (note a 0 4) (note b 0 4))))
+
+(define-art-rewriter musicxml->tonart
+  (λ (stx)
+    (qq-art stx
+      (context
+       (rewrite-in-seq
+        (rewrite-in-mxml-measure
+         (rewrite-in-seq (extract-mxml-chords)))
+        (mxml-measure->measure)
+        (rewrite-in-measure (durations->intervals) (ungroup-notes))
+        (measure->music))
+       ;; FIXME jagen do it
+       (inline-music-seq) #;(unsubdivide)))))

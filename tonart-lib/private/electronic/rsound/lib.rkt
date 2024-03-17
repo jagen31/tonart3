@@ -12,7 +12,7 @@
    (open-input-file
     (build-path soundfont-path "FluidR3_GM.sf2"))))
 
-;;;;;;;;;; realizer FAMILIES- use other realizers to stream/make a sound.
+;;;;;;;;;; realizer classes- use other realizers to stream/make a sound.
 ;; stream directly to pstream
 (define-syntax (define-composite-pstream-realizer stx)
   (syntax-parse stx
@@ -92,5 +92,26 @@
               acc)])]
         [_ acc]))))
 
-(define-composite-pstream-realizer music-pstream-realizer {tone-subrealizer midi-subrealizer})
-(define-composite-rsound-realizer music-rsound-realizer {tone-subrealizer midi-subrealizer})
+(define-subrealizer sound-subrealizer
+  (λ(ctxt)
+    (println "running sound subrealizer")
+
+    (for/foldr ([acc '()])
+               ([stx ctxt])
+      (syntax-parse stx
+        [({~literal sound} name:id) 
+         (define iv (context-ref (get-id-ctxt stx) #'interval))
+         (unless iv (raise-syntax-error 'sound-subrealizer 
+           (format "this realizer requires beat intervals for all midis, got: ~s" (syntax->datum (un-@ stx))) stx))
+         (define smap* (context-ref ctxt #'sound-map))
+         (unless smap* (raise-syntax-error 'sound-subrealizer "no sound map in context"))
+         (define smap (syntax-parse smap* [(_ map ...) (syntax->datum #'(map ...))]))
+
+         (define-values (start* end*) (syntax-parse iv
+           [({~literal interval} ({~literal start} val:number) ({~literal end} val2:number)) (values (syntax-e #'val) (syntax-e #'val2))]))
+           
+         (cons #`(cons (round (* #,start* def)) (rs-read #,(dict-ref smap (syntax->datum #'name)))) acc)]
+        [_ acc]))))
+
+(define-composite-pstream-realizer music-pstream-realizer {tone-subrealizer midi-subrealizer sound-subrealizer})
+(define-composite-rsound-realizer music-rsound-realizer {tone-subrealizer midi-subrealizer sound-subrealizer})

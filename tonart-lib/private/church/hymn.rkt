@@ -5,6 +5,32 @@
          (for-syntax syntax/parse))
 (provide (all-defined-out))
 
+(define-art-object (happy-birthday []))
+
+(define-mapping-rewriter (happy-birthday->rhythm [(: melodies happy-birthday)])
+  (λ (stx melody)
+  #`(context
+    #,@(rewrite
+      (qq-art melody
+        (rhythm 0.75 0.25 1 1 1 2 0.75 0.25 1 1 1 2 0.75 0.25 1 1 1 1 2 0.75 0.25 1 1 1 2))))))
+
+(define-mapping-rewriter (happy-birthday->^s [(: melodies happy-birthday)])
+  (λ (stx melody)
+  #`(context
+    #,@(rewrite
+      (qq-art melody
+        (seq (^s 5 5 6 5 8 7 5 5 6 5 9 8 5 5 12 10 8 7 6 11 11 10 8 9 8)))))))
+
+(define-mapping-rewriter (happy-birthday->tune [(: melodies happy-birthday)])
+  (λ (stx melody)
+    #`(context
+    #,@(rewrite
+      (qq-art melody
+        (@ ()
+          (happy-birthday) (happy-birthday->rhythm)
+          (happy-birthday) (happy-birthday->^s)
+          (apply-rhythm)))))))
+
 (define-art-object (st-flavian []))
 
 (define-mapping-rewriter (st-flavian->rhythm [(: melodies st-flavian)])

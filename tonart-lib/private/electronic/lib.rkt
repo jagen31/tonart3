@@ -1,7 +1,7 @@
 #lang racket
 
 (require art art/sequence tonart/private/lib 
-  (for-syntax syntax/parse racket/match racket/list) rsound rsound/envelope sf2-parser)
+  (for-syntax syntax/parse racket/match racket/list racket/dict) rsound rsound/envelope sf2-parser)
 (provide (all-defined-out))
 
 ;;;;;;; TONES - these are pretty easy to have a computer perform.
@@ -26,3 +26,42 @@
              (when (null? insts*) (raise-syntax-error 'midi-full-midi "no instrument in context for midi." m))]
        #:with [(_ inst-name) ...] insts* 
        (qq-art m (full-midi note 80 [inst-name ...]))])))
+
+(define-art-object (sound-map [dict]))
+(define-art-object (sound [name]))
+
+(define-art-rewriter merge-sound-maps
+  (λ (stx)
+    (syntax-parse stx
+      [_
+       (define maps (context-ref*/within (current-ctxt) (get-id-ctxt stx) #'sound-map))
+
+       ;; stmts are the statements to run to both delete the old and insert the renamed sounds
+       (define-values (stmts map*)
+       (for/fold ([stmts '()] [map* '()] #:result (values (reverse stmts) map*))
+                 ([m maps])
+         (define m* (syntax-parse m [(_ m ...) (syntax->datum #'(m ...))]))
+         (for/fold ([stmts stmts] [map* map*])
+                   ([(name path) (in-dict m*)])
+           ;; rename until it is a new name (by adding ones to the end :P)
+           ;; FIXME crappy
+           (define (rename name)
+             (if (dict-has-key? map* name)
+               (rename (string->symbol (format "~s1" name)))
+               (values name (dict-set map* name path))))
+           (define-values (name* map**) (rename name))
+
+           ;; rename all affected sounds, if the name has changed
+           (if (not (equal? name* name))
+             (values
+               (for/fold ([acc stmts])
+                         ([the-sound (context-ref*/within (current-ctxt) (get-id-ctxt m) #'sound)])
+                 (syntax-parse the-sound
+                  [(_ name**:id) 
+                   (if (equal? (syntax->datum #'name**) name)
+                     (cons (qq-art the-sound (sound #,name*)) (cons (delete-expr the-sound) acc))
+                     acc)]))
+               map**)
+             (values stmts map**)))))
+       #`(context #,@(map delete-expr maps) #,@stmts 
+           #,(qq-art stx (sound-map #,@(for/list ([(k v) (in-dict map*)]) #`[#,k . #,v]))))])))

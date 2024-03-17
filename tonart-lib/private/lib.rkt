@@ -16,8 +16,6 @@
       [(_ [start*:number end*:number (voice:id ...)] expr ...)
        (qq-art stx (@ [(interval (start start*) (end end*)) (subset voice ...)] expr ...))])))
 
-
-
 ;; FIXME jagen SOMEWHAT SLOW (also somewhat broken)
 (define-art-rewriter apply-tempo
   (λ (stx)
@@ -88,12 +86,12 @@
     (for/fold ([im #'empty-image])
               ([i (in-range max-end 2)])
       #`(beside #,im 
-          (overlay (text #,(~s (add1 i)) 16 'blue) 
+          (overlay (text #,(~s (add1 i)) 16 'black) 
                    (rectangle #,(* each-width 2) 10 'solid 'transparent)))))
 
 
-    (for/fold ([im #`(rectangle #,(drawer-width) #,(drawer-height) 'solid 'transparent)])
-                ([e ctxt*])
+    (for/fold ([im #`(rectangle #,(drawer-width) #,(drawer-height) 'solid 'tan)])
+              ([e ctxt*])
         (match-define (cons start end) (expr-interval e))
 
         (define end* (if (infinite? end) max-end end))
@@ -118,17 +116,20 @@
 
   (define voices (voice-find-all ctxt))
   (define each-height (/ (drawer-height) (add1 (set-count voices))))
+  (define no-voice (filter (λ (expr) (null? (expr-voice expr))) ctxt))
 
   #`(above/align 'left
-      (beside (overlay (text "<no-voice>" 16 'black) 
-                       (rectangle 60 #,each-height 'solid 'transparent))
-             #,(do-draw-music-voice (filter (λ (expr) (null? (expr-voice expr))) ctxt) each-height))
-    #,@(for/list ([voice-index (in-naturals)] [v voices])
-         (define ctxt* (filter (λ (expr) (context-within? (get-id-ctxt expr) (list #`(voice #,v)) ctxt)) ctxt))
-         #`(beside (overlay (text #,(format "~a:" (symbol->string (syntax->datum v))) 16 'black) (rectangle 60 #,each-height 'solid 'transparent))
-             #,(do-draw-music-voice ctxt* each-height)))
-    empty-image
-    empty-image))
+      empty-image
+      #,(if (empty? no-voice)
+        #'empty-image
+        #`(overlay/align 'left 'top 
+            (text "<no-voice>" 16 'black) 
+            #,(do-draw-music-voice no-voice each-height)))
+      #,@(for/list ([voice-index (in-naturals)] [v voices])
+           (define ctxt* (filter (λ (expr) (context-within? (get-id-ctxt expr) (list #`(voice #,v)) ctxt)) ctxt))
+           #`(overlay/align 'left 'top
+               (text #,(format "~a:" (symbol->string (syntax->datum v))) 16 'black)
+               #,(do-draw-music-voice ctxt* each-height)))))
   
 
 
@@ -142,13 +143,12 @@
 (define-mapping-rewriter (rewrite-in-music [(: s music)])
   (λ (stx s)
     (syntax-parse stx
-      [(_ exprs ...)
+      [(_ expr ...)
        (syntax-parse s
-         [(_ exprs* ...)
+         [(_ expr* ...)
            #:with (result ...) 
-             (run-art-exprs
-               (syntax->list #'(exprs ...)) (syntax->list #'(exprs* ...)) (lookup-ctxt))
-           #`(@ () #,(delete-expr s) #,(qq-art s (music result ...)))])])))
+             (rewrite-in (syntax->list #'(expr* ...)) #'(context expr ...))
+           #`(context #,(qq-art s (music result ...)))])])))
 
 (define-for-syntax (music-start stx)
   (syntax-parse stx

@@ -28,9 +28,9 @@
 
 (define-for-syntax (do-draw-note p a o)
   (define p* (string-upcase (symbol->string (syntax-e p))))
-  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"]))
+  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"]))
   (define o* (syntax-e o))
-  #`(add-line (overlay (text #,(format "~a~a~s" p* a* o*) 12 'red) (circle 9 'outline 'black) (circle 8 'solid 'blue)) 18 9 18 -20 'black))
+  #`(add-line (overlay (text #,(format "~a~a~s" p* a* o*) 12 'white) (circle 9 'outline 'black) (circle 8 'solid 'black)) 18 9 18 -20 'black))
 
 (define-drawer draw-note
   (λ (stx)
@@ -55,8 +55,7 @@
             (define semis
               (match (syntax-e #'p)
                 ['c 0] ['d 2] ['e 4] ['f 5] ['g 7] ['a 9] ['b 11]))
-            (define tuning (context-ref/surrounding (current-ctxt) (get-id-ctxt expr) #'tuning))
-            (unless tuning (raise-syntax-error 'note->tone "no tuning in context for note" expr))
+            (define tuning (require-context (lookup-ctxt) expr #'tuning))
             (syntax-parse tuning
               [({~literal tuning} {~literal 12tet})
                (with-syntax ([tone-stx (quasisyntax/loc expr (tone #,(semitone->freq (modulo (+ semis (syntax-e #'a)) 12) (syntax-e #'o))))])
@@ -112,7 +111,7 @@
 
 (define-art-object (octave [o]))
 
-(define-art-object (pitch [p a]))
+(define-art-object (pitch-class [p a]))
 
 (define-art-rewriter ^->note
   (syntax-parser
@@ -162,7 +161,7 @@
 
                    (define c (index-where scale (λ (x) (eq? (car x) 'c))))
 
-                   (values (cons (qq-art expr (pitch #,p #,(+ a (syntax-e #'degree.accidental)))) acc1) (cons (delete-expr expr) acc2))])]
+                   (values (cons (qq-art expr (pitch-class #,p #,(+ a (syntax-e #'degree.accidental)))) acc1) (cons (delete-expr expr) acc2))])]
                [_ (values acc1 acc2)])))
          (append deletes exprs))
      #'(@ () result ...)]))
@@ -219,29 +218,40 @@
        (define/syntax-parse (_ key-pitch key-accidental mode) (require-context (lookup-ctxt) n #'key))
        #;(define octave- (require-context (lookup-ctxt) expr #'octave)) 
        (define scale (generate-scale (syntax->datum #'key-pitch) (syntax->datum #'key-accidental) (syntax->datum #'mode)))
+       (println "CONVERTING NOTE")
+       (println scale)
        (define ix (index-where scale (λ (n*) (eq? (car n*) (syntax-e #'p)))))
+       (println ix)
        (match-define (list _ a*) (list-ref scale ix))
-       (define a** (- a* (syntax-e #'a)))
+       (println a*)
+       (println (syntax-e #'a))
+       (define a** (- (syntax-e #'a) a*))
 
        (qq-art n (^o #,(add1 ix) #,a** o))])))
 
+(define-mapping-rewriter (^o->^ [(: degree ^o)])
+  (λ (stx d)
+    (syntax-parse stx
+      [(_ ref-o:number)
+       (syntax-parse d
+         ;; FIXME jagen Include octave, or not????
+         [(_ ix a o) (qq-art d (^ #,(+ (syntax-e #'ix) (* 7 (- (syntax-e #'o) (syntax-e #'ref-o)))) a))])])))
+
 (define-art-object (transpose-diatonic []))
 (define-mapping-rewriter (run-transpose-diatonic [(: transposes transpose-diatonic)])
-  (λ (stx expr)
-  (syntax-parse expr
+  (λ (stx transpose)
+  (syntax-parse transpose
     [(_ val:number) 
+     #:do [(define degrees (context-ref*/within (lookup-ctxt) (get-id-ctxt transpose) #'^))]
      #:with (result ...)
-       (begin
-         (define-values (exprs deletes)
-           (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
-                     ;; FIXME jagen
-                     ([expr (filter (λ (e) (context-within? (get-id-ctxt e) (get-id-ctxt expr) (current-ctxt))) (current-ctxt))])
-             (syntax-parse expr
-               [({~literal ^} ix:number)
-                (values (cons (qq-art expr (context (^ #,(+ (syntax-e #'val) (syntax-e #'ix))))) acc1) (cons (delete-expr expr) acc2))]
-               [_ (values acc1 acc2)])))
-         (append deletes exprs))
-     #'(@ () result ...)])))
+       (for/list ([d degrees])
+         (syntax-parse d
+           [degree:^/sc
+           (println "TRANSPOSING")
+           (println #'val)
+           (println #'degree.num)
+            (qq-art d (context (^ #,(+ (syntax-e #'val) (syntax-e #'degree.num)) degree.accidental)))]))
+     #`(@ () #,@(map delete-expr degrees) result ...)])))
 
 (define-art-object (time-sig [n d]))
 (define-art-object (dynamic [level]))
@@ -378,8 +388,8 @@
   (λ (stx harm)
     (syntax-parse harm
       [(_ harmony ...)
-       (define start-pitch (context-ref/surrounding (current-ctxt) (get-id-ctxt harm) #'pitch))
-       (unless start-pitch (raise-syntax-error 'relative-chords->seq "no pitch in context for relative chords" harm)) 
+       (define start-pitch (context-ref/surrounding (current-ctxt) (get-id-ctxt harm) #'pitch-class))
+       (unless start-pitch (raise-syntax-error 'relative-chords->seq "no pitch class in context for relative chords" harm)) 
        (syntax-parse start-pitch
          [(_ p*:id a*:number)
           #:do
@@ -418,14 +428,7 @@
     (syntax-parse stx
       [(_ n:number)
        #:do [
-        (define chords
-        ;; FIXME jagen context-ref/within!!!
-          (filter 
-            (λ (e) 
-              (and 
-                (free-identifier=? (car (syntax->list e)) #'voiced-chord)
-                (context-within? (get-id-ctxt e) (get-id-ctxt stx) (current-ctxt))))
-            (current-ctxt)))
+        (define chords (sort (context-ref*/within (lookup-ctxt) (get-id-ctxt stx) #'voiced-chord) < #:key expr-single-index))
       
         (define empty-hint (build-list (syntax-e #'n) (λ (_) #f)))
         (define hints 
@@ -491,23 +494,21 @@
                  [(_ ix:number) (syntax-e #'ix)])))
          (qq-art ch (context #,(delete-expr (car the-note-sequences)) (voiced-chord p a mods voice* ...)))])])))
 
-(define-mapping-rewriter (fill-harmony [(: ch voiced-chord)])
-  (λ (stx ch)
-    (syntax-parse stx
-      [(_ chord-ix:number)
-       #:when 
-         (syntax-parse (context-ref (get-id-ctxt ch) #'index)
-           [(_ ix:number) (= (syntax-e #'chord-ix) (syntax-e #'ix))])
-       (syntax-parse ch
-         [(_ p a mods _ ...)
-          #:do [
-            (define the-note-sequences
-              (filter (λ (x) (syntax-parse x [(_ ({~literal note} _ ...) ...) #t] [_ #f]))
-                      (context-ref*/surrounding (current-ctxt) (get-id-ctxt ch) #'seq)))
-            (when (null? the-note-sequences) (raise-syntax-error 'fill-harmony "oops" ch))]
-          #:with (_ (_ p* a* o*) ...) (car the-note-sequences)
-          (qq-art ch (context #,(delete-expr (car the-note-sequences)) (voiced-chord p a mods (p* a* o*) ...)))])]
-      [_ ch])))
+(define-art-rewriter fill-harmony
+  (λ (stx)
+  (define ch (car (context-ref*/within (lookup-ctxt) (get-id-ctxt stx) #'voiced-chord)))
+  (syntax-parse ch
+    [(_ p a mods _ ...)
+      #:do [
+        (define the-note-sequences
+            (filter (λ (x) (syntax-parse x [(_ ({~literal note} _ ...) ...) #t] [_ #f]))
+                    (context-ref*/surrounding (current-ctxt) (get-id-ctxt ch) #'seq)))
+          (when (null? the-note-sequences) (raise-syntax-error 'fill-harmony "oops" ch))]
+        #:with (_ (_ p* a* o*) ...) (car the-note-sequences)
+          (qq-art ch (context #,(delete-expr (car the-note-sequences)) 
+                              #,(delete-expr ch)
+                              (voiced-chord p a mods (p* a* o*) ...)))]
+    [_ ch])))
 
 (define-art-embedding (measure [items])
   (λ (stx ctxt)
@@ -516,27 +517,13 @@
        (rewrite (quasisyntax/loc stx (context expr ...)))])))
 
 (define-mapping-rewriter (rewrite-in-measure [(: s measure)])
-  (let ()
-    (define (go stx s)
-      (syntax-parse stx
-        [(_ expr ... {~seq #:capture [name:id ...]})
-         (syntax-parse s
-           [(_ expr* ...)
-             #:do [
-              (define names (immutable-free-id-set (syntax->list #'(name ...))))
-              (define captures 
-                (if (attribute name)
-                  (filter 
-                    (λ (e) (syntax-parse e 
-                      [(head:id _ ...) (free-id-set-member? names #'head)]))
-                    (current-ctxt))
-                  '()))]
-             #:with (result ...) 
-               (rewrite-in (append captures (syntax->list #'(expr* ...))) #`(context expr ... #,@(map delete-expr captures)))
-             #`(context #,(qq-art s (measure result ...)))])]
-       ;; FIXME jagen
-       [(head expr ...) (go #'(head expr ... #:capture []) s)]))
-    go))
+  (λ (stx s)
+    (syntax-parse stx
+      [(_ expr ...)
+       (syntax-parse s
+         [(_ expr* ...)
+           #:with (result ...) (rewrite-in (syntax->list #'(expr* ...)) #`(context expr ...))
+           #`(context #,(qq-art s (measure result ...)))])])))
 
 (define-for-syntax (measure-spacer)
   #'(overlay (line 0 40 'black) (rectangle 10 40 'solid 'transparent)))
@@ -650,3 +637,19 @@
   (λ (stx n)
     (syntax-parse n
       [(_ val) (qq-art n (^ val))])))
+
+(define-for-syntax (note->liszt n) (syntax-parse n [(_ p a o) (map syntax->datum (list #'p #'a #'o))]))
+
+(define-mapping-rewriter (verify-chords [(: c chord)])
+  (λ (stx c)
+    (syntax-parse c
+      [(_ root accidental [mod ...])
+       (define pcs (list->set (generate-chord (syntax-e #'root) (syntax-e #'accidental) (syntax->datum #'(mod ...)))))
+       (define notes (context-ref*/within (lookup-ctxt) (get-id-ctxt c) #'note))
+       (for-each (λ (n) 
+         (unless (set-member? pcs (drop-right (note->liszt n) 1))
+           (raise-syntax-error #f 
+             (format "note not in chord.  Chord: ~a, Note: ~a" 
+               (syntax->datum c) (syntax->datum n)) n))) 
+               notes)
+       c])))
