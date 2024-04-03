@@ -20,13 +20,17 @@
      (define smap (syntax-parse smap* [(_ map ...) (syntax->datum #'(map ...))]))
 
      (define header
-       (for/foldr ([acc '()])
-                  ([(name path) (in-dict smap)])
-         (append 
-           (list (format "SndBuf ~a => dac;" name)
-                 (format "\"~a\" => ~a.read;" path name)
-                 (format "~a.samples() => ~a.pos;" name name))
-           acc)))
+       (append
+         (list "SinOsc _osc => dac;")
+         (list "0.5 => _osc.gain;")
+         (list "0 => _osc.freq;")
+         (for/foldr ([acc '()])
+                    ([(name path) (in-dict smap)])
+           (append 
+             (list (format "SndBuf ~a => dac;" name)
+                   (format "\"~a\" => ~a.read;" path name)
+                   (format "~a.samples() => ~a.pos;" name name))
+             acc))))
 
      (define ctxt (sort ctxt* < 
        #:key (λ (stx) 
@@ -49,6 +53,26 @@
                (define t* (syntax-e #'time))
                (define skip (if (= t* t) '() (list (format "~a::ms => now;" (inexact->exact (round (* 1000 (- t* t))))))))
                (values (cons (if (syntax-e #'on?) (format "0 => ~a.pos;" (syntax-e #'name)) "<<< \"off\" >>>;") (append skip acc)) t*)])]
+           [({~literal tone} freq:number)
+            (define instant (context-ref (get-id-ctxt stx) #'instant))
+            (define switch (context-ref (get-id-ctxt stx) #'switch))
+            (unless instant (raise-syntax-error 'midi-subrealizer (format "this realizer requires an instant for all midis, got: ~s" (un-@ stx)) stx))
+            (unless switch (raise-syntax-error 'midi-subrealizer (format "this realizer requires a switch for all midis, got: ~s" (un-@ stx)) stx))
+            (syntax-parse #`(#,instant #,switch)
+              [((_ time) (_ on?))
+               (define t* (syntax-e #'time))
+               (define skip (if (= t* t) '() (list (format "~a::ms => now;" (inexact->exact (round (* 1000 (- t* t))))))))
+               (values (cons (if (syntax-e #'on?) (format "~a => _osc.freq;" (syntax-e #'freq)) "0 => _osc.freq;") (append skip acc)) t*)])]
            [_ (values acc t)])))
 
       #`#,(string-join (append header body) "\n")])))
+
+
+
+(define-art-embedding (send [items])
+  (λ (stx ctxt)
+    (syntax-parse stx
+      [(head:id expr ...)
+       (rewrite (quasisyntax/loc stx (context expr ...)))])))
+
+(define-art-object (advance-time [time]))
