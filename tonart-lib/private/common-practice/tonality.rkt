@@ -78,6 +78,10 @@
         [(0 6) 'minor]
         [(0 _ 'major)]))))
 
+(define (note->integer n)
+  (define semis (match (car n) ['c 0] ['d 2] ['e 4] ['f 5] ['g 7] ['a 9] ['b 11]))
+  (+ 61 semis (cadr n) (* 12 (- (caddr n) 4))))
+
 (define (generate-stack pitch accidental intervals types)
   (map transpose-by-interval 
     (build-list (length intervals) (λ(x) pitch))
@@ -91,8 +95,8 @@
 (define (generate-scale pitch accidental type)
   (define types
     (match type
-      ['major '(perfect major major perfect perfect major major)]
-      ['minor '(perfect major minor perfect perfect minor minor)]))
+      [(or 'M 'major) '(perfect major major perfect perfect major major)]
+      [(or 'm 'minor) '(perfect major minor perfect perfect minor minor)]))
   (generate-stack pitch accidental (build-list 7 add1) types))
 
 (module+ test
@@ -186,36 +190,40 @@
 (define (pc->note pc o) (match pc [`(,p ,a) `(,p ,a ,o)]))
 (define (note->pc n) (match n [`(,p ,a ,o) `(,p ,a)]))
 
-(define (arpeggiate-span chord bottom top)
-  ;; `current` is equal to the "last" item in `chord` (which is a cycle, so the last non-repeating)
-  (define (arpeggiate-span chord top acc)
+
+
+(define (arpeggiate-span pcs bottom top)
+  ;; `current` is equal to the "last" item in `pcs` (which is a cycle, so the last non-repeating)
+  (define (arpeggiate-span pcs top acc)
     (cond [(higher-than (car acc) top) (reverse (cdr acc))]
           [else 
            (define current (car acc))
            (define curr-o (note-octave current))
-           (define next (pc->note (coll:first chord) (note-octave current)))
+           (define next (pc->note (coll:first pcs) (note-octave current)))
            ;; if next is closer to c then we've wrapped around and need to increase the octave
            (define next* 
              (if (<= (semitone-distance current `(c 0 ,curr-o))
                      (semitone-distance next `(c 0 ,curr-o)))
                (map-octave add1 next)
                next))
-           (arpeggiate-span (coll:rest chord) top (cons next* acc))]))
+           (arpeggiate-span (coll:rest pcs) top (cons next* acc))]))
 
   ;; get the distances above for each note in chord
-  (define the-pcs (apply generate-chord chord))
   (define-values (closest-note closest-index)
     (for/fold ([index #f] [note* #f] [minimum 12] #:result (values note* index)) 
-              ([pc the-pcs] [i (in-naturals)])
+              ([pc pcs] [i (in-naturals)])
       ;; find the closest pc in the chord _counting from beneath_
       (match-define (cons n* dis) (first (pc-semitone-distance bottom pc)))
       (if (< dis minimum)
           (values i n* dis)
           (values index note* minimum))))
-  (arpeggiate-span (coll:drop (add1 closest-index) (coll:cycle the-pcs)) top (list closest-note)))
+  (arpeggiate-span (coll:drop (add1 closest-index) (coll:cycle pcs)) top (list closest-note)))
+
+(define (arpeggiate-chord-span chord bottom top) 
+  (arpeggiate-span (apply generate-chord chord) bottom top))
 
 (module+ test
-  (arpeggiate-span '(c 0 (major)) '(c 0 3) '(c 0 4)) '((c 0 3) (e 0 3) (g 0 3) (c 0 4)))
+  (arpeggiate-chord-span '(c 0 (major)) '(c 0 3) '(c 0 4)) '((c 0 3) (e 0 3) (g 0 3) (c 0 4)))
 
 (define (get-combinations ls)
   (cond 
@@ -241,7 +249,7 @@
          (match pnote
            [`(,p ,a ,o)
             ;; generate all notes in the chord octave below and above
-            (define candidates (arpeggiate-span chord `(,p ,a ,(sub1 o)) `(,p ,a ,(add1 o))))
+            (define candidates (arpeggiate-chord-span chord `(,p ,a ,(sub1 o)) `(,p ,a ,(add1 o))))
             (map (λ (n) (cons n (- 12 (abs (semitone-distance n pnote))))) candidates)])])))
     
   (define possibilities (get-combinations scores))

@@ -5,7 +5,7 @@
          tonart/private/electronic/lib
          tonart/private/common-practice/coordinate/metric-interval
          2htdp/image
-         (for-syntax syntax/parse racket/match racket/math racket/list tonart/liszt
+         (for-syntax syntax/parse racket/match racket/math racket/list racket/string tonart/liszt
                      racket/set syntax/id-set))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
@@ -28,7 +28,7 @@
 
 (define-for-syntax (do-draw-note p a o)
   (define p* (string-upcase (symbol->string (syntax-e p))))
-  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"]))
+  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"] [3 "###"] [-3 "bbb"]))
   (define o* (syntax-e o))
   #`(add-line (overlay (text #,(format "~a~a~s" p* a* o*) 12 'white) (circle 9 'outline 'black) (circle 8 'solid 'black)) 18 9 18 -20 'black))
 
@@ -76,6 +76,7 @@
               (define semis
                 (match (syntax-e #'p)
                   ['c 0] ['d 2] ['e 4] ['f 5] ['g 7] ['a 9] ['b 11]))
+              ;; FIXME jagen replace with library function.  also this deletes thing is outdated
               (with-syntax ([midi-stx (quasisyntax/loc expr (midi #,(+ 61 semis (syntax-e #'a) (* 12 (- (syntax-e #'o) 4)))))])
                 (values (cons (qq-art expr midi-stx) acc1) (cons (delete-expr expr) acc2)))]
              [_ (values acc1 acc2)])))
@@ -93,6 +94,14 @@
   (define-syntax-class shorthand-^
     (pattern num:number #:attr accidental #'0)
     (pattern [num:number accidental:number])))
+
+(begin-for-syntax
+  (define-syntax-class note/sc
+    (pattern ({~literal note} pitch:number octave:number) #:attr accidental #'0)
+    (pattern ({~literal note} pitch:number accidental:number octave:number)))
+  (define-syntax-class shorthand-note
+    (pattern [pitch:id octave:number] #:attr accidental #'0)
+    (pattern [pitch:id accidental:number octave:number])))
 
 (define-drawer draw-^
   (λ (stx)
@@ -218,13 +227,8 @@
        (define/syntax-parse (_ key-pitch key-accidental mode) (require-context (lookup-ctxt) n #'key))
        #;(define octave- (require-context (lookup-ctxt) expr #'octave)) 
        (define scale (generate-scale (syntax->datum #'key-pitch) (syntax->datum #'key-accidental) (syntax->datum #'mode)))
-       (println "CONVERTING NOTE")
-       (println scale)
        (define ix (index-where scale (λ (n*) (eq? (car n*) (syntax-e #'p)))))
-       (println ix)
        (match-define (list _ a*) (list-ref scale ix))
-       (println a*)
-       (println (syntax-e #'a))
        (define a** (- (syntax-e #'a) a*))
 
        (qq-art n (^o #,(add1 ix) #,a** o))])))
@@ -247,9 +251,6 @@
        (for/list ([d degrees])
          (syntax-parse d
            [degree:^/sc
-           (println "TRANSPOSING")
-           (println #'val)
-           (println #'degree.num)
             (qq-art d (context (^ #,(+ (syntax-e #'val) (syntax-e #'degree.num)) degree.accidental)))]))
      #`(@ () #,@(map delete-expr degrees) result ...)])))
 
@@ -373,6 +374,19 @@
           [(p:id a:number mods ... {~seq #:v [voice ...]}) (qq-art ch (voiced-chord p a [mods ...] voice ...))]
           [(p:id a:number mods ...) (qq-art ch (chord p a [mods ...]))]))
        (qq-art stx (ix-- the-chord* ...))])))
+
+(define-for-syntax (do-draw-chord p a m)
+  (define p* (string-upcase (symbol->string (syntax-e p))))
+  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"] [3 "###"] [-3 "bbb"]))
+  (define m* (string-join (map symbol->string (syntax->datum m)) ""))
+  #`(text #,(format "~a~a~a" p* a* m*) 18 'blue))
+
+(define-drawer draw-chord
+  (λ (stx)
+    (syntax-parse stx
+      [({~datum chord} p a m) (do-draw-chord #'p #'a #'m)])))
+
+(register-drawer! chord draw-chord) 
 
 (define-art-object (relative-chords [chords]))
 
@@ -510,6 +524,15 @@
                               (voiced-chord p a mods (p* a* o*) ...)))]
     [_ ch])))
 
+(define-art-object (interv [num]))
+
+(define-mapping-rewriter (interv->^ [(: fig interv)])
+  (λ (stx fig)
+    (syntax-parse fig
+      [(_ num:number)
+       #:with deg:^/sc (require-context (lookup-ctxt) fig #'^)
+       (qq-art fig (^ #,(+ (- 1) (syntax-e #'deg.num) (syntax-e #'num))))])))
+
 (define-art-embedding (measure [items])
   (λ (stx ctxt)
     (syntax-parse stx
@@ -639,6 +662,14 @@
       [(_ val) (qq-art n (^ val))])))
 
 (define-for-syntax (note->liszt n) (syntax-parse n [(_ p a o) (map syntax->datum (list #'p #'a #'o))]))
+(define-for-syntax (chord->liszt c) (syntax-parse c [(_ p a [mod ...]) 
+  (map syntax->datum (append (list #'p #'a) (syntax->list #'(mod ...))))]))
+
+(define-for-syntax (liszt->note n) 
+  (match n [(list p a o) #`(note #,p #,a #,o)]))
+
+(define-for-syntax (liszt->chord c) 
+  (match c [(list p a mod ...) #`(chord #,p #,a #,mod)]))
 
 (define-mapping-rewriter (verify-chords [(: c chord)])
   (λ (stx c)
@@ -653,3 +684,19 @@
                (syntax->datum c) (syntax->datum n)) n))) 
                notes)
        c])))
+
+(define-mapping-rewriter (chord->scale [(: ch chord)])
+  (λ (stx ch)
+    (syntax-parse stx
+      [(_ lo:shorthand-note hi:shorthand-note)
+       (define lch (chord->liszt ch))
+       (define llo (note->liszt #'(note lo.pitch lo.accidental lo.octave)))
+       (define lhi (note->liszt #'(note hi.pitch hi.accidental hi.octave)))
+       (match-define (list p a m _ ...) lch)
+       (define result (map liszt->note (arpeggiate-span (generate-scale p a m) llo lhi)))
+       (qq-art ch (seq (ix-- #,@result)))])))
+
+(define-art-rewriter reindex-note-seq-by-semitone)
+;; FIXME jagen  (define-art-rewriter reindex-note-seq-by-pitch-order)
+
+(qr (chord c 0 [M]) (chord->scalar-note-seq [a 0 3] [b 0 5]))

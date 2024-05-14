@@ -6,6 +6,8 @@
 
 ;;;;;;; TONES - these are pretty easy to have a computer perform.
 (define-art-object (tone [freq]))
+;; context free
+(define-art-object (full-tone [freq volume]))
 
 (define-art-object (volume [n]))
 
@@ -13,10 +15,18 @@
   (λ (stx)
     (syntax-parse stx [(_ the-tone:number ...) (qq-art stx (ix-- (tone the-tone) ...))])))
 
+(define-mapping-rewriter (tone->full-tone [(: t tone)])
+  (λ (stx t)
+    (syntax-parse t
+      [(_ freq)
+       #:with (_ vol) (require-context (lookup-ctxt) t #'volume)
+       (qq-art t (full-tone freq vol))])))
+
 ;; MIDI- an alternative to sine waves
 (define-art-object (midi [num]))
 (define-art-object (instrument-map [instruments]))
-(define-art-object (full-midi [num velocity instrument]))
+;; context-free
+(define-art-object (full-midi [num velocity instruments]))
 
 (define-mapping-rewriter (midi->full-midi [(: m midi)])
   (λ (stx m)

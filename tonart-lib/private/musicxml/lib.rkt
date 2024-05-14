@@ -445,8 +445,8 @@
          (note->mxml-note)))
 
 
-(define-interpretation rudolph)
-(interpretation+ rudolph
+#;(define-interpretation rudolph)
+#;(interpretation+ rudolph
   [rudolph-the-red (context (rhythm 0.5 1 0.5 1 1 1 3) (seq (^s 5 6 5 3 8 6 5)))]
   [had-a-very-shiny (context (rhythm 0.5 0.5 0.5 0.5 1 1 4) (seq (^s 5 6 5 6 5 8 7)))]
   [and-if-you-ever (context (rhythm 0.5 1 0.5 1 1 1 3) (seq (^s 4 5 4 2 7 6 5)))]

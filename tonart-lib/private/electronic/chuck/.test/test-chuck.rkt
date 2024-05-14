@@ -14,7 +14,7 @@
   (loop 4 (sound ding)) (loop 3 (sound left)) (loop 2 (sound right)))
 
 (define-art out 
-  (st-flavian) (st-flavian->tune) (key c 0 minor) (octave 4) (^->note) (tuning 12tet) (note->tone) 
+  st-flavian-^s st-flavian-rhythm (apply-rhythm) (key c 0 minor) (octave 4) (^->note) (tuning 12tet) (note->tone) 
   (i@ [0 32] song (expand-loop))
   (-- [16 trash-sound-map] [16 real-sound-map])
   (dilate 0.5))

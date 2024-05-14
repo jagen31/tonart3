@@ -14,7 +14,7 @@
   (λ (stx)
     (syntax-parse stx
       [(_ [start*:number end*:number (voice:id ...)] expr ...)
-       (qq-art stx (@ [(interval (start start*) (end end*)) (subset voice ...)] expr ...))])))
+       (qq-art stx (@ [(interval (start start*) (end end*))] (voice@ (voice ...)) expr ...))])))
 
 ;; FIXME jagen SOMEWHAT SLOW (also somewhat broken)
 (define-art-rewriter apply-tempo
@@ -58,21 +58,6 @@
     (syntax-parse stx
       [(head:id expr ...)
        (rewrite (quasisyntax/loc stx (@ () expr ...)))])))
-
-(define-art-rewriter m!
-  (λ (stx)
-    (syntax-parse stx
-      [(_ name:id)
-       (define result (syntax-local-value #'name (λ () #f)))
-       (unless (art-var/s? result)
-         (raise-syntax-error #f "expected art var" #'name))
-       (define exprs (art-var/s-value result))
-       (unless (= (length exprs) 1)
-         (raise-syntax-error #f "expected music var" #'name))
-       (syntax-parse (car exprs)
-         [({~literal music} inner-exprs ...)
-          (qq-art stx (context inner-exprs ...))]
-         [_ (raise-syntax-error #f "expected music var" #'name)])])))
 
 (define-for-syntax (do-draw-music-voice ctxt* each-height)
 
