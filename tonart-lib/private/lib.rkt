@@ -1,6 +1,6 @@
 #lang racket
 
-(require art art/timeline art/sequence art/coordinate/subset 2htdp/image
+(require (except-in art bitmap) art/timeline art/sequence art/coordinate/subset 2htdp/image
          (for-syntax syntax/parse racket/math racket/list racket/match racket/math tonart/liszt racket/set syntax/id-set racket/format))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 

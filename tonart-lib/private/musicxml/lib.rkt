@@ -1,6 +1,6 @@
 #lang at-exp racket
 
-(require art art/sequence art/timeline art/sequence/ravel 
+(require (except-in art bitmap) art/sequence art/timeline art/sequence/ravel 
          tonart/private/lib tonart/common-practice tonart/rsound 
          xml 2htdp/image
   (for-syntax racket/string syntax/parse racket/list racket/match racket/dict racket/set syntax/to-string fmt racket/math

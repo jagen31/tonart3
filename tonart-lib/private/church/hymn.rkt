@@ -64,6 +64,14 @@
 (define-art regent-square-^s
   (seq (^s 5 3 8 5 10 9 8 5 6 6 5 8 5 4 3 5 3 8 5 10 9 8 7 8 7 6 7 8 7 6 5 9 9 7 5 10 9 8 6 11 10 9 8 8 7 8)))
 
+(define-art aus-tiefer-not-rhythm
+  (rhythm 2 1 1 1 1/2 1/2 1 1 2 2 1 1 1/2 1/2 1 1 1 2 2 1 1 1 1/2 1/2 1 1 2 2 1 1 1/2 1/2 1 1 1 2
+          2 1 1 1 1 1/2 1/2 1 2 2 1 1 1 1 1 1 2 2 1 1 1 1 1 1 4))
+(define-art aus-tiefer-not-^s
+  (seq (^s 5 1 5 6 5 4 3 4 5 5 6 7 6 5 4 3 [2 -1] 1
+           5 1 5 6 5 4 3 4 5 5 6 7 6 5 4 3 [2 -1] 1
+           4 3 6 5 4 7 6 5 4 6 5 6 7 3 5 4 3 3 6 5 4 1 3 [2 -1] 1)))
+
 (define-art happy-birthday-rhythm
   (rhythm 0.75 0.25 1 1 1 2 0.75 0.25 1 1 1 2 0.75 0.25 1 1 1 1 2 0.75 0.25 1 1 1 2))
 (define-art happy-birthday-^s

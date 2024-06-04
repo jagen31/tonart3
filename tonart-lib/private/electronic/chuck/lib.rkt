@@ -60,6 +60,8 @@
              (syntax-parse inst [(_ result) (syntax-e #'result)])
              0))))
 
+     (println (map un-@ ctxt))
+
        ;; TODO jagen31 YUGE hack
        (define get-count
          (let ([count 0] ) 
@@ -69,6 +71,8 @@
        (define body 
          (for/fold ([acc '()] [t 0] #:result (reverse acc))
                    ([stx ctxt])
+           (println (un-@ stx))
+           (println event-map)
            (syntax-parse stx
              [({~literal sound} name:id) 
               (define instant (context-ref (get-id-ctxt stx) #'instant))
@@ -83,16 +87,17 @@
              [({~literal full-tone} freq:number vol:number)
               (define instant (context-ref (get-id-ctxt stx) #'instant))
               (define switch (context-ref (get-id-ctxt stx) #'switch))
-              (define art-id (context-ref (get-id-ctxt stx) #'art-id))
+              (define/syntax-parse (_ aid) (context-ref (get-id-ctxt stx) #'art-id))
               (unless instant (raise-syntax-error 'midi-subrealizer (format "this realizer requires an instant for all midis, got: ~s" (un-@ stx)) stx))
               (unless switch (raise-syntax-error 'midi-subrealizer (format "this realizer requires a switch for all midis, got: ~s" (un-@ stx)) stx))
               (syntax-parse #`(#,instant #,switch)
                 [((_ time) (_ on?))
                  (define t* (syntax-e #'time))
                  (define skip (if (= t* t) '() (list (format "~a::ms => now;" (inexact->exact (round (* 1000 (- t* t))))))))
-                 (define count (if (syntax-e #'on?) 
-                   (let () (define the-count (get-count)) (hash-set! event-map (syntax-e art-id) the-count) the-count)
-                   (hash-ref event-map (syntax-e art-id))))
+                 (define count 
+                   (if (syntax-e #'on?) 
+                     (let () (define the-count (get-count)) (hash-set! event-map (syntax-e #'aid) the-count) the-count)
+                     (hash-ref event-map (syntax-e #'aid))))
                  (define freq-var (format "_osc~a.freq" (add1 count)))
                  (define gain-var (format "_osc~a.gain" (add1 count)))
                  (values (append 
@@ -129,22 +134,28 @@
      #'(begin
          (match-define (list ck-input ck-output p ck-error _) (process "chuck --shell"))
          (println p)
-         #;(thread 
+         (thread 
            (λ ()
              (let loop () 
                (displayln (read-line ck-input))
                (loop))))
-         #;(thread 
+         (thread 
            (λ ()
              (let loop () 
                (displayln (read-line ck-error))
                (loop))))
-         (displayln "+ chuck-backend/play_queued.ck" ck-output)
+
+         (define-runtime-path play-queued "chuck-backend/play_queued.ck")
+         (define-runtime-path go "chuck-backend/go.ck")
+         (define-runtime-path rec "chuck-backend/rec.ck")
+
+         (displayln (format "+ ~s" (path->string play-queued)) ck-output)
          (flush-output ck-output)
-         (displayln "+ chuck-backend/go.ck" ck-output)
+         (displayln (format "+ ~s" (path->string go)) ck-output)
          (flush-output ck-output)
-         (displayln "+ chuck-backend/rec.ck" ck-output)
+         (displayln (format "+ ~s" (path->string rec)) ck-output)
          (flush-output ck-output)
+
          (define-art-realizer my-secret-realizer
            (λ (stx)
              (define/syntax-parse (expr (... ...))

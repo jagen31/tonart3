@@ -1,11 +1,11 @@
 #lang racket
 
-(require art art/sequence art/timeline
+(require (except-in art bitmap) art/sequence art/timeline
          tonart/private/lib
          tonart/private/electronic/lib
          tonart/private/common-practice/coordinate/metric-interval
          2htdp/image
-         (for-syntax syntax/parse racket/match racket/math racket/list racket/string tonart/liszt
+         (for-syntax syntax/parse racket/match racket/format racket/math racket/list racket/vector racket/string tonart/liszt
                      racket/set syntax/id-set))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
@@ -28,7 +28,7 @@
 
 (define-for-syntax (do-draw-note p a o)
   (define p* (string-upcase (symbol->string (syntax-e p))))
-  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"] [3 "###"] [-3 "bbb"]))
+  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"] [3 "###"] [4 "####"] [-3 "bbb"] [-4 "bbbb"]))
   (define o* (syntax-e o))
   #`(add-line (overlay (text #,(format "~a~a~s" p* a* o*) 12 'white) (circle 9 'outline 'black) (circle 8 'solid 'black)) 18 9 18 -20 'black))
 
@@ -41,9 +41,10 @@
 
 ;; convert notes in a context to tones. requires a tuning
 (begin-for-syntax
-  (define (semitone->freq value octave)
-    (define freq (vector-ref #(261.626 277.183 293.665 311.127 329.628 349.228 369.994 391.995 415.305 440.000 466.164 493.883) value))
+  (define (semitone->freq scale value octave)
+    (define freq (vector-ref scale value))
     (* freq (expt 2 (- octave 4)))))
+    
 (define-art-rewriter note->tone
   (syntax-parser
     [_ 
@@ -56,10 +57,15 @@
               (match (syntax-e #'p)
                 ['c 0] ['d 2] ['e 4] ['f 5] ['g 7] ['a 9] ['b 11]))
             (define tuning (require-context (lookup-ctxt) expr #'tuning))
-            (syntax-parse tuning
-              [({~literal tuning} {~literal 12tet})
-               (with-syntax ([tone-stx (quasisyntax/loc expr (tone #,(semitone->freq (modulo (+ semis (syntax-e #'a)) 12) (syntax-e #'o))))])
-                 (values (cons (qq-art expr (context tone-stx)) (cons (delete-expr expr) acc))))])]
+            (define scale
+              (syntax-parse tuning
+                [({~literal tuning} {~datum 12tet})
+                 (vector 261.626 277.183 293.665 311.127 329.628 349.228 369.994 391.995 415.305 440.000 466.164 493.883)]
+                [({~literal tuning} {~datum 5-limit})
+                 (define ratios (vector 1 16/15 9/8 6/5 5/4 4/3 45/32 3/2 8/5 5/3 16/9 15/8))
+                 (vector-map (λ (x) (* 246 x)) ratios)]))
+             (with-syntax ([tone-stx (quasisyntax/loc expr (tone #,(semitone->freq scale (modulo (+ semis (syntax-e #'a)) 12) (syntax-e #'o))))])
+               (values (cons (qq-art expr (context tone-stx)) (cons (delete-expr expr) acc))))]
            [_ acc]))
      #'(@ () result ...)]))
 
@@ -377,8 +383,8 @@
 
 (define-for-syntax (do-draw-chord p a m)
   (define p* (string-upcase (symbol->string (syntax-e p))))
-  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"] [3 "###"] [-3 "bbb"]))
-  (define m* (string-join (map symbol->string (syntax->datum m)) ""))
+  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"] [3 "###"] [4 "####"] [-3 "bbb"] [-4 "bbbb"]))
+  (define m* (string-join (map ~a (syntax->datum m)) ""))
   #`(text #,(format "~a~a~a" p* a* m*) 18 'blue))
 
 (define-drawer draw-chord
@@ -427,11 +433,11 @@
             (define pcs (generate-chord (syntax-e #'root) (syntax-e #'accidental) (syntax->datum #'(mod ...))))
             (define cdis (distance-above-c (caar pcs)))]
           #:with (result ...)
-            (for/list ([pc pcs])
+            (for/list ([pc pcs] [i (in-naturals)])
               (with-syntax ([p (first pc)] 
                             [a (second pc)] 
                             [o (if (>= (distance-above-c (first pc)) cdis) octave (add1 octave))])
-                (remove-from-id-ctxt (qq-art crd (note p a o)) #'art-id)))
+                #`(ix@ #,i #,(remove-from-id-ctxt (qq-art crd (note p a o)) #'art-id))))
           #'(@ () result ...)])])))
  
 (define-art-object (voiced-chord [pitch accidental mode notes ...]))
@@ -685,7 +691,7 @@
                notes)
        c])))
 
-(define-mapping-rewriter (chord->scale [(: ch chord)])
+(define-mapping-rewriter (chord->scalar-note-seq [(: ch chord)])
   (λ (stx ch)
     (syntax-parse stx
       [(_ lo:shorthand-note hi:shorthand-note)
@@ -696,7 +702,7 @@
        (define result (map liszt->note (arpeggiate-span (generate-scale p a m) llo lhi)))
        (qq-art ch (seq (ix-- #,@result)))])))
 
-(define-art-rewriter reindex-note-seq-by-semitone)
+#;(define-art-rewriter reindex-note-seq-by-semitone)
 ;; FIXME jagen  (define-art-rewriter reindex-note-seq-by-pitch-order)
 
-(qr (chord c 0 [M]) (chord->scalar-note-seq [a 0 3] [b 0 5]))
+#;(qr (chord c 0 [M]) (chord->scalar-note-seq [a 0 3] [b 0 5]))

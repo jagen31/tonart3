@@ -48,10 +48,10 @@
   (λ (stx tr)
     (syntax-parse tr
       [(_ lists ...)
-       #:do [(define chords (context-ref*/within (current-ctxt) (get-id-ctxt tr) #'chord))]
+       #:do [(define chords (context-ref*/surrounding (current-ctxt) (get-id-ctxt tr) #'chord))]
        #:with ((result ...) ...)
          (for/list ([ch chords])
-           (for/fold ([acc (list ch)] #:result (reverse acc)) 
+           (for/fold ([acc (list (set-id-ctxt ch '()))] #:result (reverse acc)) 
                      ([l (syntax->list #'(lists ...))])
              (syntax-parse l
                [(name* ...)
@@ -62,6 +62,6 @@
                   acc)])))
        (qq-art tr (context #,@(map delete-expr chords) (seq (ix-- result ...)) ...))])))
 
-#;(qr (transforms [L P] [P] [N]) (chord c 0 M) (run-transforms))
+(qr (i@ [0 4] (chord c 0 [M]) (transforms [L P] [P] [N]))  (run-transforms))
 
 (provide (all-defined-out) (for-syntax (all-defined-out)))
