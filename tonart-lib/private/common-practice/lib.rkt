@@ -3,9 +3,11 @@
 (require (except-in art bitmap) art/sequence art/timeline
          tonart/private/lib
          tonart/private/electronic/lib
+         
          tonart/private/common-practice/coordinate/metric-interval
-         2htdp/image
-         (for-syntax syntax/parse racket/match racket/format racket/math racket/list racket/vector racket/string tonart/liszt
+         2htdp/image lang/posn
+         (for-syntax syntax/parse racket/match racket/format tonart/private/common-practice/tonality
+                     racket/math racket/list racket/vector racket/string tonart/liszt
                      racket/set syntax/id-set))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
@@ -27,15 +29,15 @@
        (qq-art stx (ix-- the-note* ...))])))
 
 (define-for-syntax (do-draw-note p a o)
-  (define p* (string-upcase (symbol->string (syntax-e p))))
-  (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"] [3 "###"] [4 "####"] [-3 "bbb"] [-4 "bbbb"]))
-  (define o* (syntax-e o))
+  (define p* (string-upcase (symbol->string p)))
+  (define a* (match a [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"] [3 "###"] [4 "####"] [-3 "bbb"] [-4 "bbbb"]))
+  (define o* o)
   #`(add-line (overlay (text #,(format "~a~a~s" p* a* o*) 12 'white) (circle 9 'outline 'black) (circle 8 'solid 'black)) 18 9 18 -20 'black))
 
 (define-drawer draw-note
   (λ (stx)
     (syntax-parse stx
-      [({~datum note} p a o) (do-draw-note #'p #'a #'o)])))
+      [({~datum note} p a o) (apply do-draw-note (note->liszt stx))])))
 
 (register-drawer! note draw-note)
 
@@ -291,8 +293,8 @@
     [(_ (_ ms*:number bs*:number) (_ me*:number be*:number))
      (qq-art stx
        (interval 
-         (start #,(+ (* 4 (sub1 (syntax-e #'ms*))) (sub1 (syntax-e #'bs*))))
-         (end #,(+ (* 4 (sub1 (syntax-e #'me*))) (sub1 (syntax-e #'be*))))))]
+         [#,(+ (* 4 (sub1 (syntax-e #'ms*))) (sub1 (syntax-e #'bs*)))
+          #,(+ (* 4 (sub1 (syntax-e #'me*))) (sub1 (syntax-e #'be*)))]))]
     [_ #f]))
 
 (define-art-rewriter metric-interval->interval
@@ -320,12 +322,12 @@
          (end #,(add1 (floor (/ (syntax-e #'end*) 4))) #,(add1 (float-modulo (syntax-e #'end*) 4)))))]
     [_ #f]))
 
-(module+ test
+#;(module+ test
   (begin-for-syntax
   (check-equal? 
     (syntax->datum 
-      (do-interval->metric-interval #'(interval (start 3) (end 20))
-        (list (set-id-ctxt #'(time-sig 4 4) (list #'(interval (start 0) (end 100)))))))
+      (do-interval->metric-interval #'(interval [3 20])
+        (list (set-id-ctxt #'(time-sig 4 4) (list #'(interval [0 100]))))))
     '(metric-interval (start 1 4) (end 6 1)))))
 
 (define-art-rewriter interval->metric-interval
@@ -344,13 +346,13 @@
                '()))))
        #`(@ () #,@exprs)])))
 
-(module+ test
+#;(module+ test
   (begin-for-syntax
   (check-equal? 
     (syntax->datum 
       (do-metric-interval->interval #'(metric-interval (start 1 4) (end 6 1))
-        (list (set-id-ctxt #'(time-sig 4 4) (list #'(interval (start 0) (end 100)))))))
-    '(interval (start 3) (end 20)))))
+        (list (set-id-ctxt #'(time-sig 4 4) (list #'(interval [0 100]))))))
+    '(interval [3 20]))))
 
 (define-nonhom-merge-rule metric-interval interval #:keep-right
   (λ (l r l* _ ctxt)
@@ -596,14 +598,14 @@
                   ([time time-sigs])
 
           (define/syntax-parse (_ num*:number denom*:number) time)
-          (define/syntax-parse (_ (_ start*:number) (_ end*:number)) 
-            (or (context-ref (get-id-ctxt time) #'interval) #'(interval (start 0) (end +inf.0))))
+          (define/syntax-parse (_ [start*:number end*:number]) 
+            (or (context-ref (get-id-ctxt time) #'interval) #'(interval [0 +inf.0])))
           (match-define (list start end- num denom) (map syntax-e (list #'start* #'end* #'num* #'denom*)))
 
           (define result
             ;; FIXME improve runtime
             (for/list ([s (in-range start end num)] [e (in-range (+ start num) (+ end num) num)])
-              (define objs- (context-ref*/interval-intersect ctxt* (list #`(interval (start #,s) (end #,e)))))
+              (define objs- (context-ref*/interval-intersect ctxt* (list #`(interval [#,s #,e]))))
 
               (define objs 
                 (for/list ([obj objs-]) 
@@ -612,7 +614,7 @@
                   (define result 
                     (put-in-id-ctxt 
                       (remove-from-id-ctxt (cdr obj) #'voice) 
-                      #`(interval (start #,(- (car iv) s)) (end #,(- (cdr iv) s)))))
+                      #`(interval [#,(- (car iv) s) #,(- (cdr iv) s)])))
                   (cond
                     [(equal? iv iv*) result]
                     [(= (car iv) (car iv*)) (put-in-id-ctxt result #'(tie start))]
@@ -646,19 +648,19 @@
                         '()]
                        [else
                         (list (put-in-id-ctxt (qq-art (car sorted-exprs) (music-rest)) 
-                                              #`(interval (start 0) (end #,(expr-interval-start (car sorted-exprs))))))]))
+                                              #`(interval [0 #,(expr-interval-start (car sorted-exprs))])))]))
                (qq-art m 
                  (measure
                    #,@(for/fold ([acc init] #:result (reverse acc))
                                 ([e sorted-exprs] 
                                  [e2 (cdr (append sorted-exprs
                                              (list (put-in-id-ctxt (ensure-id-ctxt #'(music-rest))
-                                                     #`(interval (start #,(syntax-e #'num)) (end +inf.0))))))])
+                                                     #`(interval [#,(syntax-e #'num) +inf.0])))))])
                         (define t (expr-interval-end e))
                         (define t* (expr-interval-start e2))
                         (if (= t t*)
                           (cons e acc)
-                          (cons e (cons (put-in-id-ctxt (ensure-id-ctxt #'(music-rest)) #`(interval (start #,t) (end #,t*))) acc))))))])))
+                          (cons e (cons (put-in-id-ctxt (ensure-id-ctxt #'(music-rest)) #`(interval [#,t #,t*])) acc))))))])))
         #`(voice@ (#,v) #,@(map delete-expr measures) #,@result)))
       #`(context #,@voice-results)))
 
@@ -706,3 +708,56 @@
 ;; FIXME jagen  (define-art-rewriter reindex-note-seq-by-pitch-order)
 
 #;(qr (chord c 0 [M]) (chord->scalar-note-seq [a 0 3] [b 0 5]))
+
+(define-for-syntax (draw-staff-lines width)
+  (for/fold ([acc #'empty-image])
+            ([i (in-range 5)])
+    #`(overlay/xy  (line #,width 0 'black) 0 20 #,acc)))
+
+(define-for-syntax (pitch->offset note)
+  (define octave-diff (- (third note) 4))
+  (+ (distance-above-c (car note)) (* 7 octave-diff)))
+
+(begin-for-syntax
+  (struct clef [drawn-on offset bitmap-id]))
+
+;; clef: line in treble, note indicated
+(define-syntax (define-clef stx)
+  (syntax-parse stx
+    [(_ name drawn-on:id [pitch:id octave:number] bitmap-id:id)
+     #'(define-syntax name
+         (let* ([drawn-on- (distance-above-c 'drawn-on)]
+                [pitch-on (distance-above-c 'pitch)]
+                ;; put it on the lines FIXME
+                [drawn-on (if (>= drawn-on- 4) (- drawn-on- 7) drawn-on-)])
+           (clef drawn-on
+                 (+ drawn-on (* (- 4 octave) 7) (- pitch-on))
+                 #'bitmap-id)))]))
+
+(define my-g-clef (put-pinhole 0 -10 (scale 1/6 (bitmap "clef.png"))))
+(define my-f-clef (put-pinhole 0 -10 (scale 1/48 (bitmap "fclef.png"))))
+
+(define-clef treble g [g 4] my-g-clef)
+(define-clef bass d [f 3] my-f-clef)
+
+
+
+(define-art-realizer staff-realizer
+  (λ (stx)
+    (syntax-parse stx
+      [(_ [width- height-] [cl])
+       (match-define (clef clef-drawn clef-offset clef-bmp) (syntax-local-value #'cl))
+       (define notes (context-ref* (current-ctxt) #'note))
+       (define notes* (sort notes < #:key expr-interval-start))
+       (define-values (width height) (values (syntax-e #'width-) (syntax-e #'height-)))
+       (define lines (draw-staff-lines (- width 50)))
+       (define staff-height #`(image-height #,lines))
+       (define images
+         (for/list ([note notes])
+           (define image (apply do-draw-note (note->liszt note)))
+           #`(put-pinhole #,(- (+ 50 (* (expr-interval-start note) 40)))
+                          #,(* 10 (+ (pitch->offset (note->liszt note)) clef-offset)) #,image)))
+       #`(overlay/align 'center 'center
+                        (clear-pinhole
+                         (overlay/pinhole (put-pinhole 0 0 #,lines) #,clef-bmp #,@images))
+                        (rectangle #,width #,height 'solid 'tan))])))

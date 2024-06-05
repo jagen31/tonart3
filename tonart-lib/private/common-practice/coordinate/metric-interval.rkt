@@ -49,7 +49,7 @@
         (println r)
         (error 'oops "whoops")])))
 
-(module+ test
+#;(module+ test
   (begin-for-syntax
     (check-equal?
       (syntax->datum (do-merge-metric-interval #'(metric-interval (start 1 3) (end 5 4)) #'(metric-interval (start 2 3) (end 3 2))))

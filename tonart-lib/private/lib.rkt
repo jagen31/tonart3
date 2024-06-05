@@ -14,7 +14,7 @@
   (λ (stx)
     (syntax-parse stx
       [(_ [start*:number end*:number (voice:id ...)] expr ...)
-       (qq-art stx (@ [(interval (start start*) (end end*))] (voice@ (voice ...)) expr ...))])))
+       (qq-art stx (@ [(interval [start* end*])] (voice@ (voice ...)) expr ...))])))
 
 ;; FIXME jagen SOMEWHAT SLOW (also somewhat broken)
 (define-art-rewriter apply-tempo
@@ -34,8 +34,8 @@
               ([tem tempos])
       (define iv (context-ref (get-id-ctxt tem) #'interval))
       ;; FIXME jagen yuck
-      (syntax-parse #`(#,tem #,(or iv #'(interval (start 0) (end +inf.0))))
-        [((_ tem*:number) (_ ({~literal start} s) ({~literal end} e)))
+      (syntax-parse #`(#,tem #,(or iv #'(interval [0 +inf.0])))
+        [((_ tem*:number) (_ [s e]))
          (define tem** (syntax-e #'tem*))
          (define s* (syntax-e #'s))
          (define e* (syntax-e #'e))
@@ -43,11 +43,11 @@
            (define iv* (context-ref (get-id-ctxt expr) #'interval))
            (cond [iv*
                   (syntax-parse iv*
-                    [(_ ({~literal start} expr-s) ({~literal end} expr-e))
+                    [(_ [expr-s expr-e])
                      (match-define (list s** e**) 
                        (normalize-tempo-interval (list s* e*) tem** 
                          (list (syntax-e #'expr-s) (syntax-e #'expr-e))))
-                     (put-in-id-ctxt expr #`(interval (start #,s**) (end #,e**)))])]
+                     (put-in-id-ctxt expr #`(interval [#,s** #,e**]))])]
                  [else expr]))])))
     #`(@ () #,@(map delete-expr tempos) #,@(map delete-expr rest-ctxt) (context #,@new-ctxt))))
 

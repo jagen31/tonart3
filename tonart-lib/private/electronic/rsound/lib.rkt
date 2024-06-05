@@ -52,7 +52,7 @@
         [({~literal tone} freq) 
          #:with (_ vol:number) (require-context (lookup-ctxt) stx #'volume)
          (define-values (start* end*) (syntax-parse (context-ref (get-id-ctxt stx) #'interval) 
-           [({~literal interval} ({~literal start} val:number) ({~literal end} val2:number)) (values (syntax-e #'val) (syntax-e #'val2))]))
+           [({~literal interval} [val:number val2:number]) (values (syntax-e #'val) (syntax-e #'val2))]))
          ;; FIXME jagen THIS ASSUMES UNIFORM TEMPO
          (cons #`(let ([duration (get-duration #,start* #,end* 60)]) 
              (cons (round (* #,start* (default-sample-rate)))
@@ -80,7 +80,7 @@
          (unless iv (raise-syntax-error 'midi-subrealizer 
            (format "this realizer requires beat intervals for all midis, got: ~s" (syntax->datum (un-@ stx))) stx))
          (define-values (start* end*) (syntax-parse iv
-           [({~literal interval} ({~literal start} val:number) ({~literal end} val2:number)) (values (syntax-e #'val) (syntax-e #'val2))]))
+           [({~literal interval} [val:number val2:number]) (values (syntax-e #'val) (syntax-e #'val2))]))
          (define instrument (context-ref/surrounding ctxt (get-id-ctxt stx) #'instrument))
          (unless instrument (raise-syntax-error 'midi-subrealizer "no instrument in context for midi" stx))
          (syntax-parse instrument
@@ -108,7 +108,7 @@
          (define smap (syntax-parse smap* [(_ map ...) (syntax->datum #'(map ...))]))
 
          (define-values (start* end*) (syntax-parse iv
-           [({~literal interval} ({~literal start} val:number) ({~literal end} val2:number)) (values (syntax-e #'val) (syntax-e #'val2))]))
+           [({~literal interval} [val:number val2:number]) (values (syntax-e #'val) (syntax-e #'val2))]))
            
          (cons #`(cons (round (* #,start* def)) (rs-read #,(dict-ref smap (syntax->datum #'name)))) acc)]
         [_ acc]))))
