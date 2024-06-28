@@ -8,7 +8,7 @@
          2htdp/image lang/posn
          (for-syntax syntax/parse racket/match racket/format tonart/private/common-practice/tonality
                      racket/math racket/list racket/vector racket/string tonart/liszt
-                     racket/set syntax/id-set))
+                     racket/set syntax/id-set racket/dict syntax/id-table))
 (provide (all-defined-out) (for-syntax (all-defined-out)))
 
 (module+ test (require rackunit (for-syntax rackunit)))
@@ -693,10 +693,13 @@
                notes)
        c])))
 
+(define-art-object (note-range [lo hi]))
+
 (define-mapping-rewriter (chord->scalar-note-seq [(: ch chord)])
   (λ (stx ch)
     (syntax-parse stx
-      [(_ lo:shorthand-note hi:shorthand-note)
+      [(_)
+       (define/syntax-parse (_ lo:shorthand-note hi:shorthand-note) (require-context #'note-range))
        (define lch (chord->liszt ch))
        (define llo (note->liszt #'(note lo.pitch lo.accidental lo.octave)))
        (define lhi (note->liszt #'(note hi.pitch hi.accidental hi.octave)))
@@ -734,30 +737,40 @@
                  (+ drawn-on (* (- 4 octave) 7) (- pitch-on))
                  #'bitmap-id)))]))
 
-(define my-g-clef (put-pinhole 0 -10 (scale 1/6 (bitmap "clef.png"))))
-(define my-f-clef (put-pinhole 0 -10 (scale 1/48 (bitmap "fclef.png"))))
+(define my-g-clef (put-pinhole 0 -4 (scale 1/6 (bitmap "clef.png"))))
+(define my-f-clef (put-pinhole 0 -7 (scale 1/48 (bitmap "fclef.png"))))
 
 (define-clef treble g [g 4] my-g-clef)
 (define-clef bass d [f 3] my-f-clef)
 
-
-
-(define-art-realizer staff-realizer
-  (λ (stx)
-    (syntax-parse stx
-      [(_ [width- height-] [cl])
-       (match-define (clef clef-drawn clef-offset clef-bmp) (syntax-local-value #'cl))
-       (define notes (context-ref* (current-ctxt) #'note))
-       (define notes* (sort notes < #:key expr-interval-start))
-       (define-values (width height) (values (syntax-e #'width-) (syntax-e #'height-)))
-       (define lines (draw-staff-lines (- width 50)))
-       (define staff-height #`(image-height #,lines))
-       (define images
+(define-for-syntax (do-draw-staff voice notes cl width height)
+  (match-define (clef clef-drawn clef-offset clef-bmp) cl)
+  (define lines (draw-staff-lines (- width 50)))
+  (define staff-height #`(image-height #,lines))
+  (define images
          (for/list ([note notes])
            (define image (apply do-draw-note (note->liszt note)))
            #`(put-pinhole #,(- (+ 50 (* (expr-interval-start note) 40)))
                           #,(* 10 (+ (pitch->offset (note->liszt note)) clef-offset)) #,image)))
-       #`(overlay/align 'center 'center
-                        (clear-pinhole
-                         (overlay/pinhole (put-pinhole 0 0 #,lines) #,clef-bmp #,@images))
-                        (rectangle #,width #,height 'solid 'tan))])))
+  #`(overlay/align 'center 'center
+                   (clear-pinhole
+                    (overlay/pinhole (put-pinhole 0 0 #,lines) #,clef-bmp #,@images))
+                   (rectangle #,width #,height 'solid 'tan)))
+
+(define-art-realizer staff-realizer
+  (λ (stx)
+    (syntax-parse stx
+      [(_ [width- height-] (clef-map- ...))
+       (define clef-map (make-immutable-free-id-table
+                         (map syntax->list (syntax->list #'(clef-map- ...)))))
+       (define notes (context-ref* (current-ctxt) #'note))
+       (define notes* (sort notes < #:key expr-interval-start))
+       (define by-voice
+         (for/fold ([voices (make-immutable-free-id-table)])
+                   ([note notes*])
+           (dict-update voices (car (expr-voice note)) (λ (x) (cons note x)) '())))
+       (define-values (width height) (values (syntax-e #'width-) (syntax-e #'height-)))
+       (for/fold ([image #'empty-image])
+                 ([(v ns) (in-dict by-voice)])
+         #`(above #,image #,(do-draw-staff v ns (syntax-local-value (car (dict-ref clef-map v)))
+                                           width (/ height (dict-count by-voice)))))])))
