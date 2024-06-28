@@ -75,7 +75,7 @@
   (syntax-parser
     [_ 
      #:with (result ...)
-       (begin
+       (let ()
        (define-values (exprs deletes)
          (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
                    ([expr (context-ref*/within (current-ctxt) (get-id-ctxt this-syntax) #'note)])
@@ -134,7 +134,7 @@
   (syntax-parser
     [_ 
      #:with (result ...)
-       (begin
+       (let ()
          (define-values (exprs deletes)
            (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
                      ([expr (current-ctxt)])
@@ -163,7 +163,7 @@
   (syntax-parser
     [_ 
      #:with (result ...)
-       (begin
+       (let ()
          (define-values (exprs deletes)
            (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
                      ([expr (current-ctxt)])
@@ -206,7 +206,7 @@
   (syntax-parser
     [_ 
      #:with (result ...)
-       (begin
+       (let ()
          (define-values (exprs deletes)
            (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
                      ([expr (current-ctxt)])

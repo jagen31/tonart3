@@ -12,10 +12,6 @@
   (subdivisions 12)
   (set-labels [c 0] [d 2] [e 4] [f 5] [g 7] [a 9] [b 11]))
 
-(define-art 12tet
-  
-
-
 
 (define-mapping-rewriter (note->semitone [(: n note)])
   (λ (stx n)
