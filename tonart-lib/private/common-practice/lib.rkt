@@ -18,15 +18,7 @@
 (define-art-object (tuning [type]))
 (define-art-object (music-rest []))
 
-(define-art-rewriter notes
-  (λ (stx)
-    (syntax-parse stx
-      [(_ the-note ...)
-       #:with (the-note* ...)
-        (for/list ([n (syntax->list #'(the-note ...))])
-         (syntax-parse n
-          [(p:id a:number o:number) (qq-art n (note p a o))]))
-       (qq-art stx (ix-- the-note* ...))])))
+
 
 (define-for-syntax (do-draw-note p a o)
   (define p* (string-upcase (symbol->string p)))
@@ -85,7 +77,7 @@
                 (match (syntax-e #'p)
                   ['c 0] ['d 2] ['e 4] ['f 5] ['g 7] ['a 9] ['b 11]))
               ;; FIXME jagen replace with library function.  also this deletes thing is outdated
-              (with-syntax ([midi-stx (quasisyntax/loc expr (midi #,(+ 61 semis (syntax-e #'a) (* 12 (- (syntax-e #'o) 4)))))])
+              (with-syntax ([midi-stx (quasisyntax/loc expr (midi #,(+ 60 semis (syntax-e #'a) (* 12 (- (syntax-e #'o) 4)))))])
                 (values (cons (qq-art expr midi-stx) acc1) (cons (delete-expr expr) acc2)))]
              [_ (values acc1 acc2)])))
          (append deletes exprs))
@@ -101,15 +93,25 @@
     (pattern ({~literal ^} num:number accidental:number)))
   (define-syntax-class shorthand-^
     (pattern num:number #:attr accidental #'0)
-    (pattern [num:number accidental:number])))
+    (pattern [num:number accidental:number]))
 
-(begin-for-syntax
   (define-syntax-class note/sc
     (pattern ({~literal note} pitch:number octave:number) #:attr accidental #'0)
     (pattern ({~literal note} pitch:number accidental:number octave:number)))
   (define-syntax-class shorthand-note
     (pattern [pitch:id octave:number] #:attr accidental #'0)
     (pattern [pitch:id accidental:number octave:number])))
+
+
+(define-art-rewriter notes
+  (λ (stx)
+    (syntax-parse stx
+      [(_ the-note ...)
+       #:with (the-note* ...)
+        (for/list ([n (syntax->list #'(the-note ...))])
+         (syntax-parse n
+          [n*:shorthand-note (qq-art n (note n*.pitch n*.accidental n*.octave))]))
+       (qq-art stx (ix-- the-note* ...))])))
 
 (define-drawer draw-^
   (λ (stx)
@@ -699,7 +701,8 @@
   (λ (stx ch)
     (syntax-parse stx
       [(_)
-       (define/syntax-parse (_ lo:shorthand-note hi:shorthand-note) (require-context #'note-range))
+       (define/syntax-parse (_ lo:shorthand-note hi:shorthand-note) 
+         (require-context (lookup-ctxt) ch #'note-range))
        (define lch (chord->liszt ch))
        (define llo (note->liszt #'(note lo.pitch lo.accidental lo.octave)))
        (define lhi (note->liszt #'(note hi.pitch hi.accidental hi.octave)))
@@ -721,8 +724,20 @@
   (define octave-diff (- (third note) 4))
   (+ (distance-above-c (car note)) (* 7 octave-diff)))
 
+(define-art-object (constant-structure [maybe-chord]))
+
+(define-mapping-rewriter (structure-notes [(: n note)])
+  (λ (stx n)
+    (define maybe-cs (get-context (lookup-ctxt) n #'constant-structure))
+    (if maybe-cs
+      (syntax-parse stx
+        [(_ ch)
+         (syntax-parse n
+           [(note p a o) (qq-art n (chord p a ch))])])
+      n)))
+
 (begin-for-syntax
-  (struct clef [drawn-on offset bitmap-id]))
+  (struct clef/s [drawn-on offset bitmap-id]))
 
 ;; clef: line in treble, note indicated
 (define-syntax (define-clef stx)
@@ -733,7 +748,7 @@
                 [pitch-on (distance-above-c 'pitch)]
                 ;; put it on the lines FIXME
                 [drawn-on (if (>= drawn-on- 4) (- drawn-on- 7) drawn-on-)])
-           (clef drawn-on
+           (clef/s drawn-on
                  (+ drawn-on (* (- 4 octave) 7) (- pitch-on))
                  #'bitmap-id)))]))
 
@@ -744,7 +759,7 @@
 (define-clef bass d [f 3] my-f-clef)
 
 (define-for-syntax (do-draw-staff voice notes cl width height)
-  (match-define (clef clef-drawn clef-offset clef-bmp) cl)
+  (match-define (clef/s clef-drawn clef-offset clef-bmp) cl)
   (define lines (draw-staff-lines (- width 50)))
   (define staff-height #`(image-height #,lines))
   (define images
@@ -756,6 +771,8 @@
                    (clear-pinhole
                     (overlay/pinhole (put-pinhole 0 0 #,lines) #,clef-bmp #,@images))
                    (rectangle #,width #,height 'solid 'tan)))
+
+(define-art-object (clef [name]))
 
 (define-art-realizer staff-realizer
   (λ (stx)
@@ -772,5 +789,10 @@
        (define-values (width height) (values (syntax-e #'width-) (syntax-e #'height-)))
        (for/fold ([image #'empty-image])
                  ([(v ns) (in-dict by-voice)])
-         #`(above #,image #,(do-draw-staff v ns (syntax-local-value (car (dict-ref clef-map v)))
+         (define clef-a- (dict-ref clef-map v (λ () '(#f))))
+         (define clef-a (car clef-a-))
+         (define clef-b- (context-ref*/within (current-ctxt) (list #`(voice #,v)) #'clef))
+         (define clef-b (and (not (null? clef-b-)) (syntax-parse (car clef-b-) [(_ name) #'name])))
+         (define the-clef (or clef-a clef-b #'treble))
+         #`(above #,image #,(do-draw-staff v ns (syntax-local-value the-clef)
                                            width (/ height (dict-count by-voice)))))])))

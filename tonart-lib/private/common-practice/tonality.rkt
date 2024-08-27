@@ -96,7 +96,8 @@
   (define types
     (match type
       [(or 'M 'major) '(perfect major major perfect perfect major major)]
-      [(or 'm 'minor) '(perfect major minor perfect perfect minor minor)]))
+      [(or 'm 'minor) '(perfect major minor perfect perfect minor minor)]
+      [(or 'd 'dim 'diminished) '(perfect major minor perfect diminished minor major)]))
   (generate-stack pitch accidental (build-list 7 add1) types))
 
 (module+ test

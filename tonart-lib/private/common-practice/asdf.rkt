@@ -1,6 +1,6 @@
 #lang racket
 
-(require tonart)
+(require tonart (for-syntax syntax/parse racket/dict))
 
 (define-art-object (subdivisions []))
 (define-art-object (set-labels []))
@@ -21,26 +21,26 @@
 
     (syntax-parse n
       [(note p a o)
-       (define ix (dict-ref mapping (syntax-e #'p)))
-       (define/syntax-parse ix (+ ix (syntax-e #'a)))
+       (define ix- (dict-ref mapping (syntax-e #'p)))
+       (define/syntax-parse ix (+ ix- (syntax-e #'a)))
        
        (qq-art n (semitone ix o))])))
 
 (define-mapping-rewriter (semitone->tone [(: st semitone)])
   (λ (stx st)
     
-    (define/syntax-parse (_ tuning- ...) (require-context (lookup-ctxt) n #'scale-tuning))
+    (define/syntax-parse (_ tuning- ...) (require-context (lookup-ctxt) st #'tuning))
     (define tuning (list->vector (syntax->list #'(tuning- ...))))
 
-    (syntax-parse n
-      [(note ix)
+    (syntax-parse st
+      [(semitone ix octave)
        (define freq- (dict-ref tuning (syntax-e #'ix)))
-       (define/syntax-parse freq (* freq- (expt 2 (- octave 4))))
+       (define/syntax-parse freq (* freq- (expt 2 (- (syntax-e #'octave) 4))))
        
        (qq-art st (tone freq))])))
 
 (realize (staff-realizer [800 200] [(soprano treble)])
   ionian
   (i@ [0 4] (voice@ (soprano) (note a 0 4)))
-  (scale-tuning 261.626 277.183 293.665 311.127 329.628 349.228
-                369.994 391.995 415.305 440.000 466.164 493.883))
+  (tuning 261.626 277.183 293.665 311.127 329.628 349.228
+          369.994 391.995 415.305 440.000 466.164 493.883))

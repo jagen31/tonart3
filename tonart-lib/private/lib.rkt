@@ -143,7 +143,10 @@
 (define-for-syntax (music-end stx)
   (syntax-parse stx
     [({~literal music} expr ...)
-     (apply max (map (compose (λ (e) (if (infinite? e) 0 e)) expr-interval-end) (syntax->list #'(expr ...))))]))
+     #:do [(define exprs (syntax->list #'(expr ...)))]
+     (if (null? exprs)
+         0
+         (apply max (map (compose (λ (e) (if (infinite? e) 0 e)) expr-interval-end) (syntax->list #'(expr ...)))))]))
 
 (define-mapping-rewriter (inline-music-seq [(: s seq)])
   (λ (stx s)

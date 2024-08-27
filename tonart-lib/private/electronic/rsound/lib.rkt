@@ -84,11 +84,15 @@
          (define instrument (context-ref/surrounding ctxt (get-id-ctxt stx) #'instrument))
          (unless instrument (raise-syntax-error 'midi-subrealizer "no instrument in context for midi" stx))
          (syntax-parse instrument
-           [({~literal instrument} name:id)
-            (cons #`(let ([duration (get-duration #,start* #,end* 60)]) 
-                      (cons (round (* #,start* def))
-                        (preset-midi->rsound (load-preset/memo (symbol->string (syntax->datum #'name))) 
-                                             (syntax-e #'num) duration))) 
+           [({~literal instrument} name+:id ...+)
+            (define/syntax-parse (sound ...)
+              (for/list ([name (syntax->list #'(name+ ...))])
+                #`(preset-midi->rsound (load-preset/memo #,(symbol->string (syntax->datum name))) 
+                                                         (syntax-e #'num) duration)))
+            (cons
+              #`(let ([duration (get-duration #,start* #,end* 60)]) 
+                  (cons (round (* #,start* def))
+                        (foldr rs-overlay (silence 1) (list (rs-scale 0.1 sound) ...))))
               acc)])]
         [_ acc]))))
 

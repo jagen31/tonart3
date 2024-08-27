@@ -207,10 +207,14 @@
              (for/list ([measure (xml-path part measure)])
                (define notes
                  (for/list ([note (xml-path measure note)])
+                   (define rest? (not (null? (xml-path note rest))))
                    (match-define (list p a o dur g)
-                     (map (compose syntax-e (λ (x) (if (not (null? x)) (car x) #'#f)))
+                     (map (compose syntax-e (λ (x) (if (and x (not (null? x))) (car x) #'#f)))
                        (list (xml-path note pitch step) (xml-path note pitch alter) (xml-path note pitch octave) 
-                             (xml-path note duration) (xml-path note type) )))
+                             (xml-path note duration) (xml-path note type))))
+                   ;; FIXME jagen31 bad bad bad
+                   (when (and rest? (not g))
+                     (set! g #'(_ _ "whole")))
                    (define t- (xml-path note tie))
                    (define t
                      (cond
@@ -219,13 +223,17 @@
                        [else (list #`(tie #,(string->symbol (syntax-e (xml-attr (car t-) type)))))]))
                     #`(|@| [(duration #,(string->number (syntax-e (xml-value dur)))) #,@t]
                       #,(quasisyntax/loc note 
-                       (mxml-note 
-                         #,(string->symbol (string-downcase (syntax-e (xml-value p))))
-                         #,(string->number (syntax-e (if a (xml-value a) #'"0"))) 
-                         #,(string->number (syntax-e (xml-value o)))
-                         #,(string->symbol (syntax-e (xml-value g)))
-                         #,@(if (null? (xml-path note dot)) '() (list #'dot))
-                         #,@(if (null? (xml-path note chord)) '() (list #'chord)))))))
+                       #,(if rest?
+                         #`(mxml-rest 
+                             #,(string->symbol (syntax-e (xml-value g)))
+                             #,@(if (null? (xml-path note dot)) '() (list #'dot)))
+                         #`(mxml-note 
+                           #,(string->symbol (string-downcase (syntax-e (xml-value p))))
+                           #,(string->number (syntax-e (if a (xml-value a) #'"0"))) 
+                           #,(string->number (syntax-e (xml-value o)))
+                           #,(string->symbol (syntax-e (xml-value g)))
+                           #,@(if (null? (xml-path note dot)) '() (list #'dot))
+                           #,@(if (null? (xml-path note chord)) '() (list #'chord))))))))
                (define time-sigs 
                  (for/list ([time-sig (xml-path measure attributes time)])
                    (match-define (list n d)

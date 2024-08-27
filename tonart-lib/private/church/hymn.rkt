@@ -17,6 +17,21 @@
     (define/syntax-parse (_ expr ...) r)
     (qq-art (remove-from-id-ctxt r #'table) (context expr ...))))
 
+(define-mapping-rewriter (row->seq [(: r row)])
+  (λ (stx r)
+    (define/syntax-parse (_ expr ...) r)
+    (qq-art (remove-from-id-ctxt r #'row) (seq (ix-- expr ...)))))
+
+(define-mapping-rewriter (rewrite-in-row [(: s row)])
+  (λ (stx s)
+    (syntax-parse stx
+      [(_ expr ...)
+       (syntax-parse s
+         [(_ expr* ...)
+           #:with (result ...) 
+             (rewrite-in (syntax->list #'(expr* ...)) #'(context expr ...))
+           #`(context #,(qq-art s (row result ...)))])])))
+
 (define-art st-flavian-rhythm
   (rhythm 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3))
 (define-art st-flavian-^s
