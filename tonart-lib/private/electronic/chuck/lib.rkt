@@ -183,7 +183,7 @@
     [(_ name:id)
      #'(begin
          (match-define (list ck-input ck-output p ck-error _) 
-           (process*  (path->string (find-executable-path "chuck")) "--shell"))
+           (process*  "/usr/local/bin/chuck" #;(path->string (find-executable-path "chuck")) "--shell"))
          (thread 
            (λ ()
              (let loop () 

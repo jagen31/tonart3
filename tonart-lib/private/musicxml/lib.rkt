@@ -1,6 +1,6 @@
 #lang at-exp racket
 
-(require (except-in art bitmap) art/sequence art/timeline art/sequence/ravel 
+(require (except-in art bitmap) art/sequence art/timeline art/sequence/ravel art/coordinate/instant
          tonart/private/lib tonart/common-practice tonart/rsound 
          xml 2htdp/image
   (for-syntax racket/string syntax/parse racket/list racket/match racket/dict racket/set syntax/to-string fmt racket/math
@@ -130,9 +130,40 @@
                 (lookup-ctxt)))))
        result])))
 
+(define-art-object (direction []))
+
 (define-mapping-rewriter (mxml-note->note [(: n mxml-note)])
   (λ (stx n)
-    (syntax-parse n [(_ p a o _ ...) (qq-art n (note p a o))])))
+    (syntax-parse n 
+      [(_ p a o g
+        {~optional {~and the-dot {~datum dot}}}
+        {~optional {~and the-triplet {~datum triplet}}}
+        {~optional {~and the-directions ({~datum directions} dir ...)}})
+    
+        (define note (qq-art n (note p a o (directions dir ...))))
+        #`(context #,note)])))
+
+(define-mapping-rewriter (detach-directions-from-note [(: n note)])
+  (λ (stx n)
+    (syntax-parse n 
+      [(_ p a o ({~datum directions} dir ...))
+        #:with start (expr-interval-start n)
+        #:with n (qq-art n (note p a o))
+        #`(context n (|@| [(instant start)] (direction dir) ...))])))
+
+(define-mapping-rewriter (detach-directions-from-rest [(: r music-rest)])
+  (λ (stx r)
+    (syntax-parse r
+      [(_ ({~datum directions} dir ...))
+        #:with start (expr-interval-start r)
+        #:with r (qq-art r (music-rest))
+        #`(context r (|@| [(instant start)] (direction dir) ...))])))
+
+(define-mapping-rewriter (interpret-directions [(: dir direction)])
+  (λ (stx dir)
+    (syntax-parse dir
+      [(_ text)
+       (qq-art dir #,(datum->syntax stx (read (open-input-string (syntax-e #'text)))))])))
 
 (define-for-syntax (mxml-notes->chord ns)
   (define/syntax-parse (mods ...)
@@ -186,8 +217,13 @@
 
 (define-mapping-rewriter (mxml-rest->rest [(: r mxml-rest)])
   (λ (stx r)
-    (syntax-parse r [(_ _ ...) (qq-art r (music-rest))])))
+    (syntax-parse r 
+      [(_ g 
+          {~optional {~and the-dot {~datum dot}}}
+          {~optional {~and the-directions ({~datum directions} dir ...)}}) 
+      (qq-art r (music-rest (directions dir ...)))])))
 
+(define-art-object (credit []))
 
 (define-art-rewriter load-musicxml
   (λ (stx)
@@ -195,18 +231,44 @@
       [(_ file:string [voice ...])
        #:do [
        (define it (syntax:read-xml (open-input-file (syntax-e #'file))))
+       (define credits (xml-path it credit))
+       (print credits)
        (define part-descriptions (xml-path it part-list score-part))
        (define part-hash
          (for/hash ([part part-descriptions] [voice (syntax->list #'(voice ...))])
            (define the-part (syntax-e (xml-attr part id)))
            (values the-part voice)))
        (define parts (xml-path it part))]
+       #:with (credit-result ...)
+         (for/list ([credit credits])
+           (define text (string-join (map syntax-e (apply append (map xml-values (xml-path credit credit-words)))) ""))
+           (qq-art stx (credit #,text)))
        #:with (result ...) 
          (for/list ([part parts])
            (define measures 
              (for/list ([measure (xml-path part measure)])
+
+               (define notes+directions-
+                 (filter 
+                   (λ (expr) 
+                     (syntax-parse expr
+                       [(head:id _ _ ...) (or (eq? (syntax-e #'head) 'note) (eq? (syntax-e #'head) 'direction))]
+                       [_ #f]))
+                   (syntax-parse measure
+                     [(_ _ body ...) (syntax->list #'(body ...))])))
+
+               ;; group the notes with their directions.
+               (define notes+directions-*
+                 (for/fold ([acc '()] [diracc '()] #:result (reverse acc))
+                           ([n-or-d notes+directions-])
+                   (syntax-parse n-or-d
+                     [({~datum note} _ ...) 
+                      (values (cons (syntax-property n-or-d 'directions (reverse diracc)) acc) '())]
+                     [({~datum direction} _ ...) 
+                      (values acc (cons (string-join (map syntax-e (apply append (map xml-values (xml-path n-or-d direction-type words)))) "") diracc))])))
+
                (define notes
-                 (for/list ([note (xml-path measure note)])
+                 (for/list ([note notes+directions-*])
                    (define rest? (not (null? (xml-path note rest))))
                    (match-define (list p a o dur g)
                      (map (compose syntax-e (λ (x) (if (and x (not (null? x))) (car x) #'#f)))
@@ -221,19 +283,23 @@
                        [(null? t-) '()]
                        [(= (length t-) 2) (list #'(tie continue))]
                        [else (list #`(tie #,(string->symbol (syntax-e (xml-attr (car t-) type)))))]))
+                   (define directions (syntax-property note 'directions))
                     #`(|@| [(duration #,(string->number (syntax-e (xml-value dur)))) #,@t]
                       #,(quasisyntax/loc note 
                        #,(if rest?
                          #`(mxml-rest 
                              #,(string->symbol (syntax-e (xml-value g)))
-                             #,@(if (null? (xml-path note dot)) '() (list #'dot)))
-                         #`(mxml-note 
+                             #,@(if (null? (xml-path note dot)) '() (list #'dot))
+                             #,@(if directions (list #`(directions #,@directions)) '()))
+                         (quasisyntax/loc note
+                             (mxml-note 
                            #,(string->symbol (string-downcase (syntax-e (xml-value p))))
                            #,(string->number (syntax-e (if a (xml-value a) #'"0"))) 
                            #,(string->number (syntax-e (xml-value o)))
                            #,(string->symbol (syntax-e (xml-value g)))
                            #,@(if (null? (xml-path note dot)) '() (list #'dot))
-                           #,@(if (null? (xml-path note chord)) '() (list #'chord))))))))
+                           #,@(if (null? (xml-path note chord)) '() (list #'chord))
+                           #,@(if directions (list #`(directions #,@directions)) '()))))))))
                (define time-sigs 
                  (for/list ([time-sig (xml-path measure attributes time)])
                    (match-define (list n d)
@@ -244,7 +310,7 @@
                    (quasisyntax/loc division (divisions #,(string->number (syntax-e (xml-value division)))))))
              #`(mxml-measure #,@time-sigs #,@divisions (seq (ix-- #,@notes)))))
            #`(voice@ (#,(dict-ref part-hash (syntax-e (xml-attr part id)))) (seq (ix-- #,@measures))))
-       #'(|@| () result ...)])))
+       #'(|@| () credit-result ... result ...)])))
 
 
 (define-for-syntax (generate-mxml score-parts parts)
@@ -292,7 +358,8 @@
 (define-for-syntax (generate-note n)
   (syntax-parse n
     [({~literal mxml-note} p a o g {~optional {~and the-dot {~datum dot}}}
-                                   {~optional {~and the-triplet {~datum triplet}}})
+                                   {~optional {~and the-triplet {~datum triplet}}}
+                                   {~optional {~and the-directions ({~datum directions} dir ...)}})
      #:with (_ dur:number) (require-context (lookup-ctxt) n #'duration)
      (define tie- (get-context (current-ctxt) n #'tie))
      (define-values (audio-tie visual-tie) (generate-tie-stmts tie-))
@@ -421,7 +488,7 @@
   (λ (stx)
     (syntax-parse stx
       [(_ p a o _ ...)
-       (define drawn (do-draw-note #'p #'a #'o))
+       (define drawn (do-draw-note (syntax-e #'p) (syntax-e #'a) (syntax-e #'o)))
        #`(overlay/align 'left 'top (text "< / >" 12 'black) #,drawn)])))
 
 (define-drawer draw-mxml-rest
@@ -578,4 +645,13 @@
         (rewrite-in-measure (durations->intervals) (ungroup-notes))
         (measure->music))
        ;; FIXME jagen do it
-       (inline-music-seq) #;(unsubdivide)))))
+       (inline-music-seq) (detach-directions-from-note) (detach-directions-from-rest) #;(unsubdivide)))))
+
+(define-art-rewriter tonart->musicxml
+  (λ (stx)
+    (qq-art stx
+      (context
+        (enclose-in-measures [note])
+        (rewrite-in-seq 
+          (insert-rests)
+          (measure->mxml-measure))))))

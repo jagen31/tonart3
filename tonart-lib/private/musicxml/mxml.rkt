@@ -32,6 +32,10 @@
   (syntax-parse xml
     [(_ _ body ...) (car (syntax->list #'(body ...)))]))
 
+(define (xml-values xml)
+  (syntax-parse xml
+    [(_ _ body ...) (syntax->list #'(body ...))]))
+
 (module+ test
   (define test 
      (syntax:read-xml (open-input-file "bells.musicxml")))

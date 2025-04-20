@@ -763,14 +763,17 @@
   (define lines (draw-staff-lines (- width 50)))
   (define staff-height #`(image-height #,lines))
   (define images
-         (for/list ([note notes])
-           (define image (apply do-draw-note (note->liszt note)))
-           #`(put-pinhole #,(- (+ 50 (* (expr-interval-start note) 40)))
-                          #,(* 10 (+ (pitch->offset (note->liszt note)) clef-offset)) #,image)))
+    (for/list ([n0te notes])
+      (syntax-parse n0te
+        [({~literal note} _ ...)
+         (define image (apply do-draw-note (note->liszt n0te)))
+         #`(put-pinhole #,(- (+ 50 (* (expr-interval-start n0te) 40)))
+                        #,(* 10 (+ (pitch->offset (note->liszt n0te)) clef-offset)) #,image)]
+        [_ #`(put-pinhole #,(- (+ 50 (* (expr-interval-start n0te) 40))) (+ 20 (image-height #,(drawer-recur n0te))) #,(drawer-recur n0te))])))
   #`(overlay/align 'center 'center
                    (clear-pinhole
                     (overlay/pinhole (put-pinhole 0 0 #,lines) #,clef-bmp #,@images))
-                   (rectangle #,width #,height 'solid 'tan)))
+                   (rectangle #,width #,height 'solid (color 0 0 0 0))))
 
 (define-art-object (clef [name]))
 
@@ -780,7 +783,8 @@
       [(_ [width- height-] (clef-map- ...))
        (define clef-map (make-immutable-free-id-table
                          (map syntax->list (syntax->list #'(clef-map- ...)))))
-       (define notes (context-ref* (current-ctxt) #'note))
+       #;(define notes (context-ref* (current-ctxt) #'note))
+       (define notes (current-ctxt))
        (define notes* (sort notes < #:key expr-interval-start))
        (define by-voice
          (for/fold ([voices (make-immutable-free-id-table)])

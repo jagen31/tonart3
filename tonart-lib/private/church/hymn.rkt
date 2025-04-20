@@ -7,31 +7,6 @@
 
 (define-art-object (meter [parts]))
 
-(define-mapping-rewriter (inline-music [(: m music)])
-  (λ (stx m)
-    (define/syntax-parse (_ expr ...) m)
-    #'(context expr ...)))
-
-(define-mapping-rewriter (inline-row [(: r row)])
-  (λ (stx r)
-    (define/syntax-parse (_ expr ...) r)
-    (qq-art (remove-from-id-ctxt r #'table) (context expr ...))))
-
-(define-mapping-rewriter (row->seq [(: r row)])
-  (λ (stx r)
-    (define/syntax-parse (_ expr ...) r)
-    (qq-art (remove-from-id-ctxt r #'row) (seq (ix-- expr ...)))))
-
-(define-mapping-rewriter (rewrite-in-row [(: s row)])
-  (λ (stx s)
-    (syntax-parse stx
-      [(_ expr ...)
-       (syntax-parse s
-         [(_ expr* ...)
-           #:with (result ...) 
-             (rewrite-in (syntax->list #'(expr* ...)) #'(context expr ...))
-           #`(context #,(qq-art s (row result ...)))])])))
-
 (define-art st-flavian-rhythm
   (rhythm 1 1 1 1 1 1 1 1 1 1 1 1 1 3 1 1 1 1 1 1 1 1 1 1 1 1 1 3))
 (define-art st-flavian-^s
@@ -50,7 +25,7 @@
 
 (define-art nettleton-a-rhythm (rhythm 1 1 2 2 1 1 2 2 1 1 2 2 1 1 4))
 (define-art nettleton-a-^s (seq (^s 3 2 1 1 3 5 2 2 3 5 6 5 3 2 1)))
-(define-art nettleton-b-rhythm (rhythm 1 1/2 1/2 2 2 1 1 1 1 2 1 0.5 0.5 2 2 1 1 4))
+(define-art nettleton-b-rhythm (rhythm 1 1/2 1/2 2 2 1 1 1 1 2 1 1/2 1/2 2 2 1 1 4))
 (define-art nettleton-b-^s (seq (^s 5 6 7 8 7 6 5 6 5 3 5 6 7 8 7 6 5 8)))
 (define-art nettleton-rhythm
   (seq
@@ -88,9 +63,14 @@
            4 3 6 5 4 7 6 5 4 6 5 6 7 3 5 4 3 3 6 5 4 1 3 [2 -1] 1)))
 
 (define-art happy-birthday-rhythm
-  (rhythm 0.75 0.25 1 1 1 2 0.75 0.25 1 1 1 2 0.75 0.25 1 1 1 1 2 0.75 0.25 1 1 1 2))
+  (rhythm 3/4 1/4 1 1 1 2 3/4 1/4 1 1 1 2 3/4 1/4 1 1 1 1 2 3/4 1/4 1 1 1 2))
 (define-art happy-birthday-^s
   (seq (^s 5 5 6 5 8 7 5 5 6 5 9 8 5 5 12 10 8 7 6 11 11 10 8 9 8)))
+
+(define-art taps-rhythm
+  (rhythm 3/4 1/4 3 3/4 1/4 3 1/2 1/2 1 1/2 1/2 1 1/2 1/2 3 3/4 1/4 2 1 1 3 3/4 1/4 4))
+(define-art taps-^s
+  (seq (^s -2 -2 1 -2 1 3 -2 1 3 -2 1 3 -2 1 3 1 3 5 3 1 -2 -2 -2 1)))
 
 (define-art hymnal-table-header
   (@ [(table hymnal-table)]

@@ -111,7 +111,7 @@
             (text "<no-voice>" 16 'black) 
             #,(do-draw-music-voice no-voice each-height)))
       #,@(for/list ([voice-index (in-naturals)] [v voices])
-           (define ctxt* (filter (λ (expr) (context-within? (get-id-ctxt expr) (list #`(voice #,v)) ctxt)) ctxt))
+           (define ctxt* (filter (λ (expr) (context-within? (get-id-ctxt (ensure-id-ctxt expr)) (list #`(voice #,v)) ctxt)) ctxt))
            #`(overlay/align 'left 'top
                (text #,(format "~a:" (symbol->string (syntax->datum v))) 16 'black)
                #,(do-draw-music-voice ctxt* each-height)))))
@@ -162,3 +162,9 @@
                #:with end (music-end e)
                #`[end #,@(for/list ([e (syntax->list #'(music-expr ...))]) (remove-from-id-ctxt e #'index))]]))
         #`(@ () #,(delete-expr s) #,(qq-art s (-- #,init-start result ...)))])))
+
+(define-mapping-rewriter (inline-music [(: m music)])
+  (λ (stx m)
+    (syntax-parse m
+      [(_ expr ...)
+       (qq-art m (context expr ...))])))
