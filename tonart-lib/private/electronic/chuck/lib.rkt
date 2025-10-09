@@ -54,6 +54,7 @@
            (append 
              (list (format "SndBuf ~a => dac;" name)
                    (format "\"~a\" => ~a.read;" path name)
+                   (format "1 => ~a.gain;" name)
                    (format "~a.samples() => ~a.pos;" name name))
              acc))))
 
@@ -180,20 +181,23 @@
 
 (define-syntax (start-chucker stx)
   (syntax-parse stx
-    [(_ name:id)
+    [(_ name:id) #'(start-chucker name my-secret-realizer)]
+    [(_ name:id realizer-name:id)
      #'(begin
          (match-define (list ck-input ck-output p ck-error _) 
            (process*  "/usr/local/bin/chuck" #;(path->string (find-executable-path "chuck")) "--shell"))
          (thread 
            (λ ()
              (let loop () 
-               (displayln (read-line ck-input))
+               ;; (displayln (read-line ck-input))
+               (read-line ck-input)
                (sleep 0.5)
                (loop))))
          (thread 
            (λ ()
              (let loop () 
-               (displayln (read-line ck-error))
+               ;; (displayln (read-line ck-error))
+               (read-line ck-error)
                (sleep 0.5)
                (loop))))
 
@@ -208,7 +212,8 @@
          (displayln (format "+ ~s" (path->string rec)) ck-output)
          (flush-output ck-output)
 
-         (define-art-realizer my-secret-realizer
+
+         (define-art-realizer realizer-name 
            (λ (stx)
              (define/syntax-parse (expr (... ...))
                (for/list ([e (current-ctxt)])
@@ -225,6 +230,7 @@
                         #;(println "Advancing Time")
                         (do-advance-time-chuck ck-output t))])))
              #'(begin expr (... ...))))
+
          (define-syntax (name stx)
            (syntax-parse stx
-             [(_ expr (... ...)) #'(realize (my-secret-realizer) expr (... ...))])))]))
+             [(_ expr (... ...)) #'(realize (realizer-name) expr (... ...))])))]))

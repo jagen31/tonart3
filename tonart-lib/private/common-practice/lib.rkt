@@ -85,6 +85,21 @@
 
 
 (define-art-object (key [pitch accidental mode]))
+
+;; transpose-key : 
+
+(define-mapping-rewriter (transpose-key [(: k key)])
+  (λ (stx k)
+    (syntax-parse stx 
+      [(_ [number type] {~optional mode})
+       (syntax-parse k
+         [(_ pitch accidental mode2)
+          (define/syntax-parse (pitch* accidental*)
+            (transpose-by-interval (syntax-e #'pitch) (syntax-e #'accidental) 
+                                   (syntax-e #'number) (syntax-e #'type)))
+          (qq-art stx (key pitch* accidental* #,(syntax-e (if (attribute mode) #'mode #'mode2))))])])))
+
+
 (define-art-object (^ [degree]))
 
 (begin-for-syntax
@@ -178,7 +193,7 @@
                    (define ix* (sub1 (syntax-e #'degree.num)))
                    (match-define (list p a) (list-ref scale (modulo ix* 7)))
 
-                   (define c (index-where scale (λ (x) (eq? (car x) 'c))))
+                   (define c (index-where scale (λ (x) (eq? (car x) (syntax-e #'pitch)))))
 
                    (values (cons (qq-art expr (pitch-class #,p #,(+ a (syntax-e #'degree.accidental)))) acc1) (cons (delete-expr expr) acc2))])]
                [_ (values acc1 acc2)])))
@@ -241,28 +256,44 @@
        (match-define (list _ a*) (list-ref scale ix))
        (define a** (- (syntax-e #'a) a*))
 
-       (qq-art n (^o #,(add1 ix) #,a** o))])))
+       (define c (index-where scale (λ (x) (eq? (car x) 'c))))
+       (define o* (- (syntax-e #'o) (floor (/ (- ix c) 7))))
 
-(define-mapping-rewriter (^o->^ [(: degree ^o)])
+       (qq-art n (^o #,(add1 ix) #,a** #,o*))])))
+
+(define-mapping-rewriter (^o->^ [(: d ^o)])
   (λ (stx d)
     (syntax-parse stx
       [(_ ref-o:number)
        (syntax-parse d
-         ;; FIXME jagen Include octave, or not????
          [(_ ix a o) (qq-art d (^ #,(+ (syntax-e #'ix) (* 7 (- (syntax-e #'o) (syntax-e #'ref-o)))) a))])])))
 
+(define-mapping-rewriter (^->^o [(: deg ^)])
+  (λ (stx deg)
+    (syntax-parse deg
+      [degree:^/sc
+       (define/syntax-parse (_ octave-number)
+         (require-context (lookup-ctxt) deg #'octave))
+       (qq-art deg (^o degree.num degree.accidental octave-number))])))
+
 (define-art-object (transpose-diatonic []))
-(define-mapping-rewriter (run-transpose-diatonic [(: transposes transpose-diatonic)])
+(define-mapping-rewriter (run-transpose-diatonic [(: transpose transpose-diatonic)])
   (λ (stx transpose)
-  (syntax-parse transpose
-    [(_ val:number) 
-     #:do [(define degrees (context-ref*/within (lookup-ctxt) (get-id-ctxt transpose) #'^))]
-     #:with (result ...)
-       (for/list ([d degrees])
-         (syntax-parse d
-           [degree:^/sc
-            (qq-art d (context (^ #,(+ (syntax-e #'val) (syntax-e #'degree.num)) degree.accidental)))]))
-     #`(@ () #,@(map delete-expr degrees) result ...)])))
+    (syntax-parse transpose
+      [(_ steps:number) 
+       #:do [(define old-degrees (append (context-ref*/within (current-ctxt) (get-id-ctxt transpose) #'^)
+                                         (context-ref*/within (current-ctxt) (get-id-ctxt transpose) #'^o)))]
+       #:with (new-degree ...)
+         (for/list ([old-degree old-degrees])
+           (syntax-parse old-degree
+             [degree:^/sc
+              #:with steps* (+ (syntax-e #'steps) (syntax-e #'degree.num))
+              (qq-art old-degree (^ steps* degree.accidental))]
+             [degree:^o/sc
+              #:with steps* (+ (syntax-e #'steps) (syntax-e #'degree.num))
+              (qq-art old-degree (^o steps* degree.accidental degree.octave))]))
+      #:with (delete-old-degree ...) (map delete-expr old-degrees)
+       #`(context delete-old-degree ... new-degree ...)])))
 
 (define-art-object (time-sig [n d]))
 (define-art-object (dynamic [level]))
@@ -384,6 +415,43 @@
           [(p:id a:number mods ... {~seq #:v [voice ...]}) (qq-art ch (voiced-chord p a [mods ...] voice ...))]
           [(p:id a:number mods ...) (qq-art ch (chord p a [mods ...]))]))
        (qq-art stx (ix-- the-chord* ...))])))
+
+(define-art-object (chord^ [degree accidental mode]))
+
+(define-art-rewriter chord^->chord
+  (syntax-parser
+    [_ 
+     #:with (result ...)
+       (let ()
+         (define-values (exprs deletes)
+           (for/fold ([acc1 '()] [acc2 '()] #:result (values (reverse acc1) (reverse acc2)))
+                     ([expr (current-ctxt)])
+             (syntax-parse expr
+               [({~literal chord^} degree:number orig-a:number m)
+                (define key (require-context (lookup-ctxt) expr #'key))
+                (syntax-parse key
+                  [({~literal key} pitch:id accidental:number mode:id)
+                   (define scale (generate-scale (syntax->datum #'pitch) (syntax->datum #'accidental) (syntax->datum #'mode)))
+                   (define ix* (sub1 (syntax-e #'degree)))
+                   (match-define (list p a) (list-ref scale (modulo ix* 7)))
+
+                   (values (cons (qq-art expr (chord #,p #,(+ a (syntax-e #'orig-a)) m)) acc1) (cons (delete-expr expr) acc2))])]
+               [_ (values acc1 acc2)])))
+         (append deletes exprs))
+     #'(@ () result ...)]))
+
+(define-mapping-rewriter (chord->chord^ [(: ch chord)])
+  (λ (stx ch)
+    (syntax-parse ch
+      [(_ p a m)
+       (define/syntax-parse (_ key-pitch key-accidental mode) (require-context (lookup-ctxt) ch #'key))
+       (define scale (generate-scale (syntax->datum #'key-pitch) (syntax->datum #'key-accidental) (syntax->datum #'mode)))
+       (define ix (index-where scale (λ (n*) (eq? (car n*) (syntax-e #'p)))))
+       (match-define (list _ a*) (list-ref scale ix))
+       (define a** (- (syntax-e #'a) a*))
+
+       (qq-art ch (chord^ #,(add1 ix) #,a** m))])))
+
 
 (define-for-syntax (do-draw-chord p a m)
   (define p* (string-upcase (symbol->string (syntax-e p))))
@@ -558,6 +626,23 @@
            #:with (result ...) (rewrite-in (syntax->list #'(expr* ...)) #`(context expr ...))
            #`(context #,(qq-art s (measure result ...)))])])))
 
+(define-mapping-rewriter (inline-measure-seq [(: s seq)])
+  (λ (stx s)
+    (define init-start (expr-interval-start s))
+    (define init-end (expr-interval-end s))
+    (syntax-parse s 
+      [(_ expr ...)
+        #:do [(define sorted (sort (syntax->list #'(expr ...)) < #:key expr-single-index))]
+        #:with (result ...) 
+          (for/list ([e sorted]) 
+            (syntax-parse e
+              [({~literal measure} music-expr ...)
+               (define/syntax-parse start (expr-single-index e))
+               ;; TODO jagen31 this is 4/4 only
+               #`(i@ [#,(* 4 (syntax-e #'start)) #,(+ 4 (* 4 (syntax-e #'start)))] 
+                     #,@(for/list ([e (syntax->list #'(music-expr ...))]) (remove-from-id-ctxt e #'index)))]))
+        (qq-art s (@ () result ...))])))
+
 (define-for-syntax (measure-spacer)
   #'(overlay (line 0 40 'black) (rectangle 10 40 'solid 'transparent)))
 
@@ -716,9 +801,10 @@
 #;(qr (chord c 0 [M]) (chord->scalar-note-seq [a 0 3] [b 0 5]))
 
 (define-for-syntax (draw-staff-lines width)
-  (for/fold ([acc #'empty-image])
-            ([i (in-range 5)])
-    #`(overlay/xy  (line #,width 0 'black) 0 20 #,acc)))
+  #`(beside/align 'top (line 0 80 (penny 'black 6))
+    #,(for/fold ([acc #'empty-image])
+              ([i (in-range 5)])
+      #`(overlay/xy  (line #,width 0 (penny 'black 5)) 0 20 #,acc))))
 
 (define-for-syntax (pitch->offset note)
   (define octave-diff (- (third note) 4))
@@ -752,51 +838,120 @@
                  (+ drawn-on (* (- 4 octave) 7) (- pitch-on))
                  #'bitmap-id)))]))
 
+(define (penny color width) (pen color width "solid" "round" "bevel"))
 (define my-g-clef (put-pinhole 0 -4 (scale 1/6 (bitmap "clef.png"))))
 (define my-f-clef (put-pinhole 0 -7 (scale 1/48 (bitmap "fclef.png"))))
+(define my-λ-clef (put-pinhole 0 0 
+  (scale 1/4 
+    (overlay/align 'left 'bottom 
+      (line 200 300 (penny 'white 40)) 
+      (line 100 -150 (penny 'white 40))
+      (rectangle 300 300 'solid 'transparent)))))
 
 (define-clef treble g [g 4] my-g-clef)
 (define-clef bass d [f 3] my-f-clef)
+(define-clef λclef d [c 4] my-λ-clef)
 
-(define-for-syntax (do-draw-staff voice notes cl width height)
+(define-syntax (draw-logo stx)
+  (syntax-parse stx
+    [(_ exprs ...)
+     #`(scale 5 #,(do-draw-staff #'blah
+                                 (run-art-exprs (syntax->list #'(exprs ...)) '())
+                                 (syntax-local-value #'λclef) 250 200
+                                 #f))]))
+  
+
+(define-for-syntax (do-draw-key pitch accidental mode [text? #t])
+  (define ix (index-of '(f c g d a e b) pitch))
+  
+  (define accs (- ix 1))
+  (define additional-accs (* 7 accidental))
+
+  (define additional-additional-accs
+    (match mode
+      [(or 'major 'M) 0]
+      [(or 'minor 'm) -3]))
+
+  (define p* (string-upcase (symbol->string pitch)))
+  (define a* (match accidental [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"] [3 "###"] [4 "####"] [-3 "bbb"] [-4 "bbbb"]))
+
+  (define total-accs (+ accs additional-accs additional-additional-accs))
+  (define (draw-accidentals n accidental)
+    (define-values (init-1 init-2 increase symbol)
+      (match accidental
+        ['sharp (values -35 -65 10 "#")]
+        ['flat (values -52 -22 -10 "b")]))
+
+    (for/fold ([acc #'(rectangle 100 100 'solid 'transparent)]) 
+              ([i (in-range n)])
+      #`(overlay/xy (text #,symbol 36 'blue) #,(* -20 i) #,(+ (if (even? i) init-1 init-2) (* increase (floor (/ i 2)))) #,acc)))
+  #`(above/align 'left 
+      #,(if (>= total-accs 0) (draw-accidentals total-accs 'sharp) (draw-accidentals (- total-accs) 'flat))
+      empty-image
+      #,(if text? #`(text #,(format "~a~a ~a" p* a* mode) 18 'blue) #'empty-image)))
+
+(define-for-syntax (do-draw-staff voice notes cl width height [text #t])
   (match-define (clef/s clef-drawn clef-offset clef-bmp) cl)
   (define lines (draw-staff-lines (- width 50)))
   (define staff-height #`(image-height #,lines))
   (define images
     (for/list ([n0te notes])
+      (define (do-aux height [drawing (drawer-recur n0te)])
+        #`(put-pinhole #,(- (+ 30 (* (or (expr-instant n0te) (expr-interval-start n0te)) 40))) 
+                         (+ #,height (image-height #,drawing)) #,drawing))
       (syntax-parse n0te
         [({~literal note} _ ...)
          (define image (apply do-draw-note (note->liszt n0te)))
-         #`(put-pinhole #,(- (+ 50 (* (expr-interval-start n0te) 40)))
+         #`(put-pinhole #,(- (+ 50 (* (or (expr-instant n0te) (expr-interval-start n0te)) 40)))
                         #,(* 10 (+ (pitch->offset (note->liszt n0te)) clef-offset)) #,image)]
-        [_ #`(put-pinhole #,(- (+ 50 (* (expr-interval-start n0te) 40))) (+ 20 (image-height #,(drawer-recur n0te))) #,(drawer-recur n0te))])))
+        [({~datum registration} _ ...) (do-aux 125)]
+        [({~datum key} p a mode) 
+         (define image (do-draw-key (syntax-e #'p) (syntax-e #'a) (syntax-e #'mode) text))
+         #`(put-pinhole #,(- (+ 50 (* (or (expr-instant n0te) (expr-interval-start n0te)) 40))) 30 #,image)]
+        [({~datum tuning} _ ...) (do-aux 75)]
+        [({~datum octave} _ ...) (do-aux 50)]
+        [({~datum prompt} name) 
+         (do-aux -100 #`(above/align 'left (text #,(symbol->string (syntax-e #'name)) 24 'red) (line 0 150 'red)))]
+        [_ (do-aux 25)])))
   #`(overlay/align 'center 'center
                    (clear-pinhole
-                    (overlay/pinhole (put-pinhole 0 0 #,lines) #,clef-bmp #,@images))
-                   (rectangle #,width #,height 'solid (color 0 0 0 0))))
+                    (underlay/pinhole (put-pinhole 10 0 #,lines) #,clef-bmp #,@images))
+                   (rectangle #,width #,height 'solid 'transparent)))
 
 (define-art-object (clef [name]))
+
+(define-for-syntax (do-draw-staves ctxt w h clef-map)
+       #;(define notes (context-ref* ctxt #'note))
+       (define notes* (sort ctxt < #:key (lambda (x) (or (expr-instant x) (expr-interval-start x)))))
+       (define by-voice
+         (for/fold ([voices (make-immutable-free-id-table)])
+                   ([note notes*])
+           (dict-update voices (if (cons? (expr-voice note)) (car (expr-voice note)) #'no-voice) (λ (x) (cons note x)) '())))
+       (define-values (width height) (values w h))
+       (for/fold ([image #'empty-image])
+                 ([(v ns) (in-dict by-voice)])
+         (define clef-a- (dict-ref clef-map v (λ () '(#f))))
+         (define clef-a (car clef-a-))
+         (define clef-b- (context-ref*/within ctxt (list #`(voice #,v)) #'clef))
+         (define clef-b (and (not (null? clef-b-)) (syntax-parse (car clef-b-) [(_ name) #'name])))
+         (define the-clef (or clef-a clef-b #'treble))
+         #`(above #,image #,(do-draw-staff v ns (syntax-local-value the-clef)
+                                           width (/ height (dict-count by-voice))))))
+
 
 (define-art-realizer staff-realizer
   (λ (stx)
     (syntax-parse stx
       [(_ [width- height-] (clef-map- ...))
-       (define clef-map (make-immutable-free-id-table
-                         (map syntax->list (syntax->list #'(clef-map- ...)))))
-       #;(define notes (context-ref* (current-ctxt) #'note))
-       (define notes (current-ctxt))
-       (define notes* (sort notes < #:key expr-interval-start))
-       (define by-voice
-         (for/fold ([voices (make-immutable-free-id-table)])
-                   ([note notes*])
-           (dict-update voices (car (expr-voice note)) (λ (x) (cons note x)) '())))
-       (define-values (width height) (values (syntax-e #'width-) (syntax-e #'height-)))
-       (for/fold ([image #'empty-image])
-                 ([(v ns) (in-dict by-voice)])
-         (define clef-a- (dict-ref clef-map v (λ () '(#f))))
-         (define clef-a (car clef-a-))
-         (define clef-b- (context-ref*/within (current-ctxt) (list #`(voice #,v)) #'clef))
-         (define clef-b (and (not (null? clef-b-)) (syntax-parse (car clef-b-) [(_ name) #'name])))
-         (define the-clef (or clef-a clef-b #'treble))
-         #`(above #,image #,(do-draw-staff v ns (syntax-local-value the-clef)
-                                           width (/ height (dict-count by-voice)))))])))
+       (define clef-map 
+         (make-immutable-free-id-table
+           (map syntax->list (syntax->list #'(clef-map- ...)))))
+       (do-draw-staves (current-ctxt) (syntax-e #'width-) (syntax-e #'height-) clef-map)])))
+
+(define-drawer draw-staff
+  (λ (stx)
+    (syntax-parse stx
+      [(_ ctxt ...)
+       (do-draw-staves (syntax->list #'(ctxt ...)) (drawer-width) (drawer-height) (hash))])))
+
+(register-drawer! music draw-staff)

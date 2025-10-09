@@ -44,7 +44,7 @@ right1.samples() => right1.pos;
 <<< "off" >>>;
 0 => right.pos;
 500::ms => now;
-0 => _osc3.gain;
+0 => _osc3.gain
 261.626 => _osc4.freq;
 .5 => _osc4.gain;
 <<< "off" >>>;

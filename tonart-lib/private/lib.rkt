@@ -123,7 +123,7 @@
     (syntax-parse stx
       [(_ expr ...) (do-draw-music (syntax->list #'(expr ...)))])))
 
-(register-drawer! music draw-music)
+#;(register-drawer! music draw-music)
 
 (define-mapping-rewriter (rewrite-in-music [(: s music)])
   (λ (stx s)
@@ -168,3 +168,5 @@
     (syntax-parse m
       [(_ expr ...)
        (qq-art m (context expr ...))])))
+
+(define-art-object (location []))

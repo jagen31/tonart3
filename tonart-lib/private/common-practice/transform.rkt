@@ -64,4 +64,14 @@
 
 (qr (i@ [0 4] (chord c 0 [M]) (transforms [L P] [P] [N]))  (run-transforms))
 
+(define-mapping-rewriter (chord->key [(: c chord)])
+  (λ (stx c)
+    (syntax-parse c
+      [(_ p a [these _ ...]) (qq-art c (key p a these))])))
+
+(define-mapping-rewriter (key->chord [(: k key)])
+  (λ (stx k)
+    (syntax-parse k
+      [(_ p a t) (qq-art k (chord p a [t]))])))
+
 (provide (all-defined-out) (for-syntax (all-defined-out)))

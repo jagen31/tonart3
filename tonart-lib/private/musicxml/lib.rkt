@@ -2,9 +2,9 @@
 
 (require (except-in art bitmap) art/sequence art/timeline art/sequence/ravel art/coordinate/instant
          tonart/private/lib tonart/common-practice tonart/rsound 
-         xml 2htdp/image
+         (except-in xml location) 2htdp/image
   (for-syntax racket/string syntax/parse racket/list racket/match racket/dict racket/set syntax/to-string fmt racket/math
-              (except-in xml attribute) "mxml.rkt" syntax/id-table syntax/id-set))
+              (except-in xml attribute location) "mxml.rkt" syntax/id-table syntax/id-set))
 
 (provide (all-defined-out) (for-syntax (all-defined-out)))
   
@@ -112,11 +112,13 @@
 (define-mapping-rewriter (mxml-chord->note-group [(: c mxml-chord)])
   (λ (stx c)
     (syntax-parse c
-      [(_ ([p a o] ...) _ ...) 
-      (qq-art c (note-group [p a o] ...))])))
+      [(_ ([p a o] ...) _ ... ({~datum directions} dir ...) _ ...) 
+      (qq-art c (note-group [p a o] ... (directions dir ...)))])))
 
 (define-mapping-rewriter (ungroup-notes [(: ng note-group)])
-  (λ (stx ng) (syntax-parse ng [(_ [p a o] ...) (qq-art ng (context (note p a o) ...))])))
+  (λ (stx ng) 
+    (syntax-parse ng [(_ [p1 a1 o1] [p a o] ... (directions dir ...)) 
+      (qq-art ng (|@| () (note p1 a1 o1 (directions dir ...)) (note p a o (directions)) ...))])))
 
 (define-mapping-rewriter (mxml-measure->measure [(: m mxml-measure)])
   (λ (stx m)
@@ -149,7 +151,8 @@
       [(_ p a o ({~datum directions} dir ...))
         #:with start (expr-interval-start n)
         #:with n (qq-art n (note p a o))
-        #`(context n (|@| [(instant start)] (direction dir) ...))])))
+        #`(context n (|@| [(instant start)] (direction dir) ...))]
+      [n #'(context n)])))
 
 (define-mapping-rewriter (detach-directions-from-rest [(: r music-rest)])
   (λ (stx r)
@@ -167,12 +170,14 @@
 
 (define-for-syntax (mxml-notes->chord ns)
   (define/syntax-parse (mods ...)
-    (syntax-parse (car ns)
+    (syntax-parse (last ns)
       [(_ p a o mods ...) #'(mods ...)]))
   (define/syntax-parse (clauses ...)
     (for/list ([n ns])
       (syntax-parse n
         [(_ p a o _ ...) #'[p a o]])))
+  (println "chord")
+  (println (qq-art (car ns) (mxml-chord (clauses ...) mods ...)))
   (qq-art (car ns) (mxml-chord (clauses ...) mods ...)))
 
 (define-art-rewriter extract-mxml-chords
@@ -232,7 +237,6 @@
        #:do [
        (define it (syntax:read-xml (open-input-file (syntax-e #'file))))
        (define credits (xml-path it credit))
-       (print credits)
        (define part-descriptions (xml-path it part-list score-part))
        (define part-hash
          (for/hash ([part part-descriptions] [voice (syntax->list #'(voice ...))])
@@ -244,6 +248,7 @@
            (define text (string-join (map syntax-e (apply append (map xml-values (xml-path credit credit-words)))) ""))
            (qq-art stx (credit #,text)))
        #:with (result ...) 
+
          (for/list ([part parts])
            (define measures 
              (for/list ([measure (xml-path part measure)])
@@ -308,8 +313,9 @@
                (define divisions
                  (for/list ([division (xml-path measure attributes divisions)])
                    (quasisyntax/loc division (divisions #,(string->number (syntax-e (xml-value division)))))))
-             #`(mxml-measure #,@time-sigs #,@divisions (seq (ix-- #,@notes)))))
-           #`(voice@ (#,(dict-ref part-hash (syntax-e (xml-attr part id)))) (seq (ix-- #,@measures))))
+               (define num (string->number (syntax-e (xml-attr measure number))))
+             #`(|@| [(index #,(sub1 num))] (mxml-measure #,@time-sigs #,@divisions (seq (ix-- #,@notes))))))
+           #`(voice@ (#,(dict-ref part-hash (syntax-e (xml-attr part id)))) (seq #,@measures)))
        #'(|@| () credit-result ... result ...)])))
 
 
@@ -633,6 +639,10 @@
     (voice@ (accomp) (instrument |Yamaha Grand Piano|))
     (note->midi))))
 
+(define-art-rewriter art-print
+  (lambda (stx)
+    (println (syntax-e (cadr (syntax->list stx))))
+    #'(context)))
 
 (define-art-rewriter musicxml->tonart
   (λ (stx)
@@ -643,9 +653,17 @@
          (rewrite-in-seq (extract-mxml-chords)))
         (mxml-measure->measure)
         (rewrite-in-measure (durations->intervals) (ungroup-notes))
-        (measure->music))
+        (measure->music)
+        
+        )
        ;; FIXME jagen do it
-       (inline-music-seq) (detach-directions-from-note) (detach-directions-from-rest) #;(unsubdivide)))))
+       (inline-music-seq) 
+       
+
+       (detach-directions-from-note) 
+       
+       (detach-directions-from-rest) 
+       #;(unsubdivide)))))
 
 (define-art-rewriter tonart->musicxml
   (λ (stx)

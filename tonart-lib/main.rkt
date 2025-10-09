@@ -1,12 +1,12 @@
 #lang racket
 
-(require art tonart/base tonart/common-practice 
+(require art tonart/base tonart/common-practice tonart/organ
          tonart/rsound tonart/linuxsampler tonart/chuck tonart/private/church/hymn
-         tonart/private/musicxml/lib xml
+         tonart/private/musicxml/lib 
          (for-syntax syntax/parse))
-(provide (all-from-out art tonart/base tonart/common-practice 
+(provide (all-from-out art tonart/base tonart/common-practice tonart/organ
                        tonart/rsound tonart/linuxsampler tonart/chuck tonart/private/church/hymn
-                       tonart/private/musicxml/lib xml))
+                       tonart/private/musicxml/lib))
 
 (define-syntax dmr
   (syntax-parser

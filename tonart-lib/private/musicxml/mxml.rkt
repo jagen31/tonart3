@@ -38,6 +38,6 @@
 
 (module+ test
   (define test 
-     (syntax:read-xml (open-input-file "bells.musicxml")))
+     (syntax:read-xml (open-input-file "bells2.musicxml")))
 
   (xml-path (cadr (xml-path (caddr (xml-path test part measure)) note)) dot))
