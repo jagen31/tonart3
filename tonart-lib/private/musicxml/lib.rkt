@@ -176,8 +176,6 @@
     (for/list ([n ns])
       (syntax-parse n
         [(_ p a o _ ...) #'[p a o]])))
-  (println "chord")
-  (println (qq-art (car ns) (mxml-chord (clauses ...) mods ...)))
   (qq-art (car ns) (mxml-chord (clauses ...) mods ...)))
 
 (define-art-rewriter extract-mxml-chords

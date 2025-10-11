@@ -852,13 +852,114 @@
 (define-clef bass d [f 3] my-f-clef)
 (define-clef λclef d [c 4] my-λ-clef)
 
-(define-syntax (draw-logo stx)
-  (syntax-parse stx
-    [(_ exprs ...)
-     #`(scale 5 #,(do-draw-staff #'blah
-                                 (run-art-exprs (syntax->list #'(exprs ...)) '())
+(define-art-object (mode []))
+
+(define-mapping-rewriter (next-mode [(: m mode)])
+  (λ (stx m)
+    (define/syntax-parse (_ m*) m)
+    (define m**
+      (match (syntax->datum #'m*)
+        ['ionian 'lydian]
+        ['dorian 'mixolydian]
+        ['phrygian 'aeolian]
+        ['lydian 'locrian]
+        ['mixolydian 'ionian]
+        ['aeolian 'dorian]
+        ['locrian 'phrygian]))
+    (qq-art m (mode #,m**))))
+
+(define-mapping-rewriter (prev-mode [(: m mode)])
+  (λ (stx m)
+    (define/syntax-parse (_ m*) m)
+    (define m**
+      (match (syntax->datum #'m*)
+        ['dorian 'aeolian]
+        ['phrygian 'locrian]
+        ['lydian 'ionian]
+        ['mixolydian 'dorian]
+        ['aeolian 'phrygian]
+        ['locrian 'lydian]
+        ['ionian 'mixolydian]))
+    (qq-art m (mode #,m**))))
+
+(define-mapping-rewriter (mode->transpose [(: m mode)])
+  (λ (stx m)
+    (define/syntax-parse (_ _ _ M/m)
+      (require-context (lookup-ctxt) m #'key))
+    (define offset
+      (match (syntax->datum #'M/m)
+        [(or 'major 'M) 0]
+        [(or 'minor 'm) 2]))
+    (define/syntax-parse (_ name) m)
+    (qq-art m
+            (transpose-diatonic
+             #,(modulo
+                (+ offset
+                   (match (syntax->datum #'name)
+                     ['ionian 0]
+                     ['dorian 1]
+                     ['phrygian 2]
+                     ['lydian 3]
+                     ['mixolydian 4]
+                     ['aeolian 5]
+                     ['locrian 6])) 7)))))
+
+
+
+(define-art-object (invert []))
+(define-mapping-rewriter (run-invert [(: inv invert)])
+  (λ (stx inv)
+    (syntax-parse inv
+      [(_ p a o) 
+       #:do [(define old-degrees (append (context-ref*/within (current-ctxt) (get-id-ctxt inv) #'^)
+                                         (context-ref*/within (current-ctxt) (get-id-ctxt inv) #'^o)))]
+       #:with (new-degree ...)
+         (for/list ([old-degree old-degrees])
+           (syntax-parse old-degree
+             [degree:^/sc
+              #:with steps* (+ (* 2 (- (syntax-e #'p) (syntax-e #'degree.num))) (syntax-e #'degree.num))
+              #:with a* (+ (* 2 (- (syntax-e #'a) (syntax-e #'degree.accidental))) (syntax-e #'degree.accidental))
+              (qq-art old-degree (^ steps* a*))]
+             [degree:^o/sc
+              #:with steps* (+ (* 2 (- (syntax-e #'p) (syntax-e #'degree.num))) (syntax-e #'degree.num))
+              #:with octave* (+ (* 2 (- (syntax-e #'o) (syntax-e #'degree.octave))) (syntax-e #'degree.octave))
+              #:with a* (+ (* 2 (- (syntax-e #'a) (syntax-e #'degree.accidental))) (syntax-e #'degree.accidental))
+              (qq-art old-degree (^o steps* a* octave*))]))
+      #:with (delete-old-degree ...) (map delete-expr old-degrees)
+       #`(context delete-old-degree ... new-degree ...)])))
+
+(define-art-object (transpose-octave []))
+(define-mapping-rewriter (run-transpose-octave [(: tr transpose-octave)])
+  (λ (stx tr)
+    (syntax-parse tr
+      [(_ octave*) 
+       #:do [(define old-degrees (context-ref*/within (current-ctxt) (get-id-ctxt tr) #'^o))]
+       #:with (new-degree ...)
+         (for/list ([old-degree old-degrees])
+           (syntax-parse old-degree
+             [degree:^o/sc
+              (qq-art old-degree (^o degree.num degree.accidental #,(+ (syntax-e #'degree.octave) (syntax-e #'octave*))))]))
+      #:with (delete-old-degree ...) (map delete-expr old-degrees)
+       #`(context delete-old-degree ... new-degree ...)])))
+
+(define-for-syntax (draw-logo ctxt)
+     (define do-invert (if (context-ref ctxt #'invert) #'flip-vertical #'identity))
+     (define background
+       (syntax-parse (context-ref ctxt #'mode)
+         [(_ m) (match (syntax->datum #'m)
+                  ['ionian 'red]
+                  ['dorian 'brown]
+                  ['phrygian 'purple]
+                  ['lydian 'yellow]
+                  ['mixolydian 'blue]
+                  ['aeolian 'darkred]
+                  ['locrian 'brown])]
+         [#f 'red]))
+     #`(#,do-invert (freeze (overlay (scale 5 #,(do-draw-staff #'blah
+                                 (context-ref* ctxt #'key)
                                  (syntax-local-value #'λclef) 250 200
-                                 #f))]))
+                                 #f))
+                (rectangle 1100 800 'solid '#,background)))))
   
 
 (define-for-syntax (do-draw-key pitch accidental mode [text? #t])
@@ -908,8 +1009,10 @@
         [({~datum key} p a mode) 
          (define image (do-draw-key (syntax-e #'p) (syntax-e #'a) (syntax-e #'mode) text))
          #`(put-pinhole #,(- (+ 50 (* (or (expr-instant n0te) (expr-interval-start n0te)) 40))) 30 #,image)]
-        [({~datum tuning} _ ...) (do-aux 75)]
+        [({~datum tuning} _ ...) (do-aux 125)]
         [({~datum octave} _ ...) (do-aux 50)]
+        [({~datum mode} _ ...) (do-aux 75)]
+        [({~datum invert} _ ...) (do-aux 100)]
         [({~datum prompt} name) 
          (do-aux -100 #`(above/align 'left (text #,(symbol->string (syntax-e #'name)) 24 'red) (line 0 150 'red)))]
         [_ (do-aux 25)])))
