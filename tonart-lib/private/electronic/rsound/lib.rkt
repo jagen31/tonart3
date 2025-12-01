@@ -8,9 +8,11 @@
 ;; load fluid by default
 (define-runtime-path soundfont-path "../../resources/sf2")
 (define fluid
-  (parse-soundfont
-   (open-input-file
-    (build-path soundfont-path "FluidR3_GM.sf2"))))
+  (call-with-exception-handler (lambda (x) #f)
+			       (lambda ()
+    (parse-soundfont
+      (open-input-file
+        (build-path soundfont-path "FluidR3_GM.sf2"))))))
 
 ;;;;;;;;;; realizer classes- use other realizers to stream/make a sound.
 ;; stream directly to pstream
