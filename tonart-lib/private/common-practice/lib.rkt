@@ -948,10 +948,10 @@
        (syntax-parse (context-ref ctxt #'mode)
          [(_ m) (match (syntax->datum #'m)
                   ['ionian 'red]
-                  ['dorian 'brown]
+                  ['dorian 'green]
                   ['phrygian 'purple]
                   ['lydian 'yellow]
-                  ['mixolydian 'blue]
+                  ['mixolydian 'midnightblue]
                   ['aeolian 'darkred]
                   ['locrian 'brown])]
          [#f 'red]))
