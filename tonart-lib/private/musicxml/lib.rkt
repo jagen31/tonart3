@@ -270,6 +270,7 @@
                      [({~datum direction} _ ...) 
                       (values acc (cons (string-join (map syntax-e (apply append (map xml-values (xml-path n-or-d direction-type words)))) "") diracc))])))
 
+
                (define notes
                  (for/list ([note notes+directions-*])
                    (define rest? (not (null? (xml-path note rest))))
@@ -648,7 +649,8 @@
       (context
        (rewrite-in-seq
         (rewrite-in-mxml-measure
-         (rewrite-in-seq (extract-mxml-chords)))
+         (rewrite-in-seq 
+         (extract-mxml-chords)))
         (mxml-measure->measure)
         (rewrite-in-measure (durations->intervals) (ungroup-notes))
         (measure->music)

@@ -457,7 +457,7 @@
   (define p* (string-upcase (symbol->string (syntax-e p))))
   (define a* (match (syntax-e a) [0 ""] [1 "#"] [-1 "b"] [2 "x"] [-2 "bb"] [3 "###"] [4 "####"] [-3 "bbb"] [-4 "bbbb"]))
   (define m* (string-join (map ~a (syntax->datum m)) ""))
-  #`(text #,(format "~a~a~a" p* a* m*) 18 'blue))
+  #`(text #,(format "~a~a~a" p* a* m*) 24 'goldenrod))
 
 (define-drawer draw-chord
   (λ (stx)
